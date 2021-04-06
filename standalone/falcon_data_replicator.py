@@ -112,7 +112,7 @@ try:
         if config["Destination Data"]["REMOVE_LOCAL_FILE"]:
             # Should we remove local files after we upload them?
             remove = config["Destination Data"]["REMOVE_LOCAL_FILE"]
-            if remove.lower() in "true,yes".split(","):
+            if remove.lower() in "true,yes".split(","):  # pylint: disable=R1703
                 REMOVE_LOCAL_FILE = True
             else:
                 REMOVE_LOCAL_FILE = False
