@@ -1,3 +1,4 @@
+![CrowdStrike Falcon](https://raw.githubusercontent.com/CrowdStrike/falconpy/main/docs/asset/cs-logo.png)<br/>[![Twitter URL](https://img.shields.io/twitter/url?label=Follow%20%40CrowdStrike&style=social&url=https%3A%2F%2Ftwitter.com%2FCrowdStrike)](https://twitter.com/CrowdStrike)<br/>
 # Falcon Data Replicator
 The Falcon Data Replicator replicates log data from your CrowdStrike environment
 to a stand-alone target. This target can be a location on the filesystem, or a 
