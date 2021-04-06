@@ -16,6 +16,7 @@ import pathlib
 import signal
 import configparser
 import argparse
+from functools import partial
 
 # This solution is dependant upon the AWS boto3 Python library
 try:
@@ -25,11 +26,24 @@ except ImportError as err:
     print('The AWS boto3 library is required to run Falcon Data Replicator.\nPlease execute "pip3 install boto3"')
 
 
+class Status:
+    def __init__(self):
+        self.set_exit(False)
+
+    @property
+    def exiting(self):
+        return self.exiting
+
+    @classmethod
+    def set_exit(self, val):
+        self.exiting = val
+        return True
+
+
 # This method is used as an exit handler. When a cancel or interrupt is received, this method forces
 # FDR to finish processing the file it is working on before exiting.
-def clean_exit(signal, frame):
-    global EXIT
-    EXIT = True
+def clean_exit(status, signal, frame):
+    status.set_exit(True)
     return
 
 
@@ -37,14 +51,14 @@ parser = argparse.ArgumentParser("Falcon Data Replicator")
 parser.add_argument("-f", "--config_file", dest="config_file", help="Path to the configuration file", required=False)
 args = parser.parse_args()
 if not args.config_file:
-    config_file = "../falcon_data_replicator.ini"
+    CONFIG_FILE = "../falcon_data_replicator.ini"
 else:
-    config_file = args.config_file
+    CONFIG_FILE = args.config_file
 
 
 # GLOBALS
 config = configparser.ConfigParser()
-config.read(config_file)
+config.read(CONFIG_FILE)
 # We cannot read our source parameters, exit the routine
 if "Source Data" not in config:
     print("Unable to load configuration file parameters. Routine halted.")
@@ -94,10 +108,11 @@ try:
 except AttributeError:
     pass
 # Default our run flag to on
-EXIT = False
+#EXIT = False
+status = Status()
 
 # Enable our graceful exit handler to allow uploads and artifact cleanup to complete
-signal.signal(signal.SIGINT, clean_exit)
+signal.signal(signal.SIGINT, partial(clean_exit, status))
 # Connect to our CrowdStrike provided SQS queue
 sqs = boto3.resource('sqs', region_name=REGION_NAME, aws_access_key_id=AWS_KEY, aws_secret_access_key=AWS_SECRET)
 # Connect to our CrowdStrike provided S3 bucket
@@ -176,7 +191,7 @@ def consume_data_replicator():
     byte_cnt = 0
 
     # Continuously poll the queue for new messages.
-    while not EXIT:
+    while not status.exiting:
         # Receive messages from queue if any exist
         # (NOTE: receive_messages() only receives a few messages at a time, it does NOT exhaust the queue)
         for msg in queue.receive_messages(VisibilityTimeout=VISIBILITY_TIMEOUT):
@@ -198,7 +213,7 @@ def consume_data_replicator():
 
         print("Messages consumed: %i\tFile count: %i\tByte count: %i" % (msg_cnt, file_cnt, byte_cnt))
     # We've requested an exit
-    if EXIT:
+    if status.exiting:
         print("Routine exit requested.")
 
 
