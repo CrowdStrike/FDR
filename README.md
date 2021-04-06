@@ -1,4 +1,4 @@
-# FDR
+# Falcon Data Replicator
 The Falcon Data Replicator replicates log data from your CrowdStrike environment
 to a stand-alone target. This can be a location on the filesystem, or a cloud
 storage bucket.
