@@ -1,7 +1,7 @@
 # Falcon Data Replicator
 The Falcon Data Replicator replicates log data from your CrowdStrike environment
-to a stand-alone target. This can be a location on the filesystem, or a cloud
-storage bucket.
+to a stand-alone target. This target can be a location on the filesystem, or a 
+cloud storage bucket.
 > Currently AWS is the only cloud provider implemented.
 ## Requirements
 + Python 3.6+
