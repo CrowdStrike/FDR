@@ -107,10 +107,9 @@ try:
                 REMOVE_LOCAL_FILE = False
 except AttributeError:
     pass
-# Default our run flag to on
-#EXIT = False
-status = Status()
 
+# Create our loop tracker and default our run flag to on
+status = Status()
 # Enable our graceful exit handler to allow uploads and artifact cleanup to complete
 signal.signal(signal.SIGINT, partial(clean_exit, status))
 # Connect to our CrowdStrike provided SQS queue
