@@ -9,8 +9,8 @@ cloud storage bucket.
 + CrowdStrike Falcon FDR credentials
 + CrowdStrike Falcon FDR SQS queue URL
 ## Stand-alone solution
-+ [falcon_data_replicator.ini](https://github.com/CrowdStrike/FDR/falcon_data_replicator.ini) - Configuration file
-+ [standalone/falcon_data_replicator.py](https://github.com/CrowdStrike/FDR/standalone/falcon_data_replicator.py) - Stand-alone solution application file
++ [falcon_data_replicator.ini](https://github.com/CrowdStrike/FDR/blob/main/falcon_data_replicator.ini) - Configuration file
++ [standalone/falcon_data_replicator.py](https://github.com/CrowdStrike/FDR/blob/main/standalone/falcon_data_replicator.py) - Stand-alone solution application file
 ### Configuration
 The `falcon_data_replicator.ini` file contains all of the parameters necessary to configure the
 solution for replication to the local file system and / or a storage bucket in AWS S3. After 
