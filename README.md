@@ -2,13 +2,15 @@
 The Falcon Data Replicator replicates log data from your CrowdStrike environment
 to a stand-alone target. This can be a location on the filesystem, or a cloud
 storage bucket.
-
 > Currently AWS is the only cloud provider implemented.
-
+## Requirements
++ Python 3.6+
++ boto3
++ CrowdStrike Falcon FDR credentials
++ CrowdStrike Falcon FDR SQS queue
 ## Standalone solution
 + `falcon_data_replicator.ini` - Configuration file
-+ `standalone/falcon_data_replicator.py` - Standalone solution
-
++ `standalone/falcon_data_replicator.py` - Standalone solution application file
 ### Configuration
 The `falcon_data_replicator.ini` file contains all of the parameters necessary to configure the
 solution for replication to the local file system and / or a storage bucket in AWS S3. After 
@@ -30,7 +32,6 @@ upload to our bucket is skipped and the local files are retained after download.
 + `TARGET_BUCKET` - The name of the AWS bucket we will use for our target destination
 + `TARGET_REGION` - The name of the AWS region our target bucket resides within
 + `REMOVE_LOCAL_FILE` - Boolean representing whether or not to remove local files after they are uploaded
-
 ### Running the solution
 After updating the configuration file to reflect your environment specifics, you can run this solution using:
 ```bash
