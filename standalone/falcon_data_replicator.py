@@ -1,3 +1,4 @@
+"""Falcon Data Replicator"""
 #  _____     _                   ____        _          ____            _ _           _
 # |  ___|_ _| | ___ ___  _ __   |  _ \  __ _| |_ __ _  |  _ \ ___ _ __ | (_) ___ __ _| |_ ___  _ __
 # | |_ / _` | |/ __/ _ \| '_ \  | | | |/ _` | __/ _` | | |_) / _ \ '_ \| | |/ __/ _` | __/ _ \| '__|
@@ -13,7 +14,7 @@ import os
 import sys
 import time
 import pathlib
-import signal
+import signal as sig
 import configparser
 import argparse
 from functools import partial
@@ -26,25 +27,31 @@ except ImportError as err:
     print('The AWS boto3 library is required to run Falcon Data Replicator.\nPlease execute "pip3 install boto3"')
 
 
+# Class to track our running status, so we can create a graceful exit handler without using a global
 class Status:
+    """The Status class tracks the status of our process."""
     def __init__(self):
+        """Initialize our status class"""
         self.set_exit(False)
 
     @property
     def exiting(self):
+        """Returns the value of the exiting property"""
         return self.exiting
 
     @classmethod
-    def set_exit(self, val):
-        self.exiting = val
+    def set_exit(cls, val):
+        """Sets the value of the exiting property"""
+        cls.exiting = val
         return True
 
 
 # This method is used as an exit handler. When a cancel or interrupt is received, this method forces
 # FDR to finish processing the file it is working on before exiting.
-def clean_exit(status, signal, frame):
-    status.set_exit(True)
-    return
+def clean_exit(stat, signal, frame):  # pylint: disable=W0613
+    """Graceful exit handler for keyboard interrupt"""
+    stat.set_exit(True)
+    return True
 
 
 parser = argparse.ArgumentParser("Falcon Data Replicator")
@@ -101,7 +108,7 @@ try:
         if config["Destination Data"]["REMOVE_LOCAL_FILE"]:
             # Should we remove local files after we upload them?
             remove = config["Destination Data"]["REMOVE_LOCAL_FILE"]
-            if remove.lower() in "true,yes":
+            if remove.lower() in "true,yes".split(","):
                 REMOVE_LOCAL_FILE = True
             else:
                 REMOVE_LOCAL_FILE = False
@@ -110,8 +117,11 @@ except AttributeError:
 
 # Create our loop tracker and default our run flag to on
 status = Status()
-# Enable our graceful exit handler to allow uploads and artifact cleanup to complete
-signal.signal(signal.SIGINT, partial(clean_exit, status))
+# Enable our graceful exit handler to allow uploads and artifact
+# cleanup to complete for SIGINT, SIGTERM and SIGQUIT signals.
+sig.signal(sig.SIGINT, partial(clean_exit, status))
+sig.signal(sig.SIGTERM, partial(clean_exit, status))
+sig.signal(sig.SIGQUIT, partial(clean_exit, status))
 # Connect to our CrowdStrike provided SQS queue
 sqs = boto3.resource('sqs', region_name=REGION_NAME, aws_access_key_id=AWS_KEY, aws_secret_access_key=AWS_SECRET)
 # Connect to our CrowdStrike provided S3 bucket
