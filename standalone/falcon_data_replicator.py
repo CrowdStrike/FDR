@@ -196,8 +196,6 @@ def download_message_files(msg):
 
 def consume_data_replicator():
     """Consume from data replicator and track number of messages/files/bytes downloaded."""
-    # Delay between message iterations
-#    sleep_time = MESSAGE_DELAY
     # Tracking details
     msg_cnt = 0
     file_cnt = 0
