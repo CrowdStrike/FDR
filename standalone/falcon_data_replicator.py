@@ -6,7 +6,7 @@
 # |_|  \__,_|_|\___\___/|_| |_| |____/ \__,_|\__\__,_| |_| \_\___| .__/|_|_|\___\__,_|\__\___/|_|
 #                                                                |_|
 ###################################################################################################
-# NOTE: See Falcon Data Replicator instructions for details on how to use this application.       #
+# NOTE: See https://github.com/CrowdStrike/FDR for details on how to use this application.        #
 ###################################################################################################
 #
 import json
