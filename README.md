@@ -7,7 +7,7 @@ storage bucket.
 + Python 3.6+
 + boto3
 + CrowdStrike Falcon FDR credentials
-+ CrowdStrike Falcon FDR SQS queue
++ CrowdStrike Falcon FDR SQS queue URL
 ## Standalone solution
 + `falcon_data_replicator.ini` - Configuration file
 + `standalone/falcon_data_replicator.py` - Standalone solution application file
