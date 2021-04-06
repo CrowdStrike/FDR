@@ -81,6 +81,10 @@ QUEUE_URL = config["Source Data"]["QUEUE_URL"]
 OUTPUT_PATH = config["Source Data"]["OUTPUT_PATH"]
 # Timeout before messages are returned to the queue
 VISIBILITY_TIMEOUT = int(config["Source Data"]["VISIBILITY_TIMEOUT"])
+# Message delay
+MESSAGE_DELAY = int(config["Source Data"]["MESSAGE_DELAY"])
+# Queue delay
+QUEUE_DELAY = int(config["Source Data"]["QUEUE_DELAY"])
 # AWS Region name for our source S3 bucket
 REGION_NAME = config["Source Data"]["REGION_NAME"]
 TARGET_REGION_NAME = None  # Defaults to no upload
@@ -193,7 +197,7 @@ def download_message_files(msg):
 def consume_data_replicator():
     """Consume from data replicator and track number of messages/files/bytes downloaded."""
     # Delay between message iterations
-    sleep_time = 1
+#    sleep_time = MESSAGE_DELAY
     # Tracking details
     msg_cnt = 0
     file_cnt = 0
@@ -201,9 +205,11 @@ def consume_data_replicator():
 
     # Continuously poll the queue for new messages.
     while not status.exiting:
+        received = False
         # Receive messages from queue if any exist
         # (NOTE: receive_messages() only receives a few messages at a time, it does NOT exhaust the queue)
         for msg in queue.receive_messages(VisibilityTimeout=VISIBILITY_TIMEOUT):
+            received = True
             # Increment our message counter
             msg_cnt += 1
             # Grab the actual message body
@@ -218,9 +224,12 @@ def consume_data_replicator():
             # this message will be restored to the queue for follow-up processing
             msg.delete()
             # Sleep until our next message iteration
-            time.sleep(sleep_time)
+            time.sleep(MESSAGE_DELAY)
 
         print("Messages consumed: %i\tFile count: %i\tByte count: %i" % (msg_cnt, file_cnt, byte_cnt))
+        if not received:
+            time.sleep(QUEUE_DELAY)
+
     # We've requested an exit
     if status.exiting:
         print("Routine exit requested.")
