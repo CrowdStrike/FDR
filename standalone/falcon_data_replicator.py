@@ -183,7 +183,8 @@ def consume_data_replicator():
             received = True
             # Increment our message counter
             msg_cnt += 1
-            logger.info("Processing message %i", msg_cnt)
+
+            logger.info("Processing message %i [%s]", msg_cnt, msg.message_id)
             # Grab the actual message body
             body = json.loads(msg.body)
             # Download the file to our local file system and potentially upload it to S3
@@ -192,7 +193,7 @@ def consume_data_replicator():
             file_cnt += body['fileCount']
             # Increment our byte count by using the totalSize value in our message
             byte_cnt += body['totalSize']
-            logger.info("Removing message %i from queue", msg_cnt)
+            logger.info("Removing message %i [%s] from queue", msg_cnt, msg.message_id)
             # Remove our message from the queue, if this is not performed in visibility_timeout seconds
             # this message will be restored to the queue for follow-up processing
             msg.delete()
@@ -259,6 +260,11 @@ if __name__ == '__main__':
     # Add our log file handler to our logger
     logger.addHandler(RFH)
     # Log our pre-startup event
+    logger.info(" _____ ____  ____        _")
+    logger.info("|  ___|  _ \\|  _ \\      (.\\")
+    logger.info("| |_  | | | | |_) |     |/(\\")
+    logger.info("|  _| | |_| |  _ <       \\(\\\\")
+    logger.info("|_|   |____/|_| \\_\\      \"^\"`\\")
     logger.info("Process starting up")
     # Enable our graceful exit handler to allow uploads and artifact
     # cleanup to complete for SIGINT, SIGTERM and SIGQUIT signals.
