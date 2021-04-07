@@ -1,5 +1,9 @@
 ![CrowdStrike Falcon](https://raw.githubusercontent.com/CrowdStrike/falconpy/main/docs/asset/cs-logo.png)<br/>[![Twitter URL](https://img.shields.io/twitter/url?label=Follow%20%40CrowdStrike&style=social&url=https%3A%2F%2Ftwitter.com%2FCrowdStrike)](https://twitter.com/CrowdStrike)<br/>
 # Falcon Data Replicator
+[![Bandit](https://github.com/CrowdStrike/FDR/actions/workflows/bandit.yml/badge.svg)](https://github.com/CrowdStrike/FDR/actions/workflows/bandit.yml)
+[![Flake8](https://github.com/CrowdStrike/FDR/actions/workflows/linting.yml/badge.svg)](https://github.com/CrowdStrike/FDR/actions/workflows/linting.yml)
+[![Python Lint](https://github.com/CrowdStrike/FDR/actions/workflows/pylint.yml/badge.svg)](https://github.com/CrowdStrike/FDR/actions/workflows/pylint.yml)
+
 The Falcon Data Replicator replicates log data from your CrowdStrike environment
 to a stand-alone target. This target can be a location on the filesystem, or a 
 cloud storage bucket.
