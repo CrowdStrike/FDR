@@ -1,14 +1,14 @@
 name: Bandit
 on:
   push:
-    paths:
-      - '**.py'
+#    paths:
+#      - '**.py'
     branches: 
       - main
       - 'ver_*'
   pull_request:
-    paths:
-      - '**.py'
+#    paths:
+#      - '**.py'
     branches: 
       - main
       - 'ver_*'
@@ -27,6 +27,6 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install bandit
         pip install -r requirements.txt
-    - name: Analyze package with bandit
+    - name: Analyze stand-alone with bandit
       run: |
-        bandit -r .
+        bandit -r standalone
