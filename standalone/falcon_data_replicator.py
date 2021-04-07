@@ -19,6 +19,8 @@ import pathlib
 import signal as sig
 import configparser
 import argparse
+import logging
+from logging.handlers import RotatingFileHandler
 from functools import partial
 
 # This solution is dependant upon the AWS boto3 Python library
@@ -54,6 +56,8 @@ class FDRConnector:  # pylint: disable=R0902
         self.message_delay = int(config["Source Data"]["MESSAGE_DELAY"])
         # Queue delay
         self.queue_delay = int(config["Source Data"]["QUEUE_DELAY"])
+        # Log File
+        self.log_file = config["Source Data"]["LOG_FILE"]
         # AWS Region name for our source S3 bucket
         self.region_name = config["Source Data"]["REGION_NAME"]
         self.target_region_name = None  # Defaults to no upload
@@ -116,22 +120,22 @@ def handle_file(path, key):
         with open(path, 'rb') as data:
             # Perform the upload to the same key in our target bucket
             s3_target.upload_fileobj(data, FDR.target_bucket_name, key)
-        print('Uploaded file to path %s' % key)
+        logger.info('Uploaded file to path %s', key)
         # Only perform this step if configured to do so
         if FDR.remove_local_file:
             # Remove the file from the local file system
             os.remove(path)
-            print(f"Removed {path}")
+            logger.info("Removed %s", path)
             # Remove the temporary folder from the local file system
             os.rmdir(os.path.dirname(path))
-            print(f"Removed {os.path.dirname(path)}")
+            logger.info("Removed %s", os.path.dirname(path))
             pure = pathlib.PurePath(path)
             # Remove the parent temporary folders if they exist
             os.rmdir(pure.parent.parent)
-            print(f"Removed {pure.parent.parent}")
+            logger.info("Removed %s", pure.parent.parent)
             if FDR.output_path not in pure.parent.parent.parent.name:
                 os.rmdir(pure.parent.parent.parent)
-                print(f"Removed {pure.parent.parent.parent}")
+                logger.info("Removed %s", pure.parent.parent.parent)
     # We're done
     return True
 
@@ -158,7 +162,7 @@ def download_message_files(msg):
         with open(local_path, 'wb') as data:
             # Download the file from S3 into our opened local file
             s3.download_fileobj(msg['bucket'], s3_path, data)
-        print('Downloaded file to path %s' % local_path)
+        logger.info('Downloaded file to path %s', local_path)
         # Handle S3 upload if configured
         handle_file(local_path, s3_path)
 
@@ -179,6 +183,7 @@ def consume_data_replicator():
             received = True
             # Increment our message counter
             msg_cnt += 1
+            logger.info("Processing message %i", msg_cnt)
             # Grab the actual message body
             body = json.loads(msg.body)
             # Download the file to our local file system and potentially upload it to S3
@@ -187,23 +192,26 @@ def consume_data_replicator():
             file_cnt += body['fileCount']
             # Increment our byte count by using the totalSize value in our message
             byte_cnt += body['totalSize']
+            logger.info("Removing message %i from queue", msg_cnt)
             # Remove our message from the queue, if this is not performed in visibility_timeout seconds
             # this message will be restored to the queue for follow-up processing
             msg.delete()
             # Sleep until our next message iteration
             time.sleep(FDR.message_delay)
 
-        print("Messages consumed: %i\tFile count: %i\tByte count: %i" % (msg_cnt, file_cnt, byte_cnt))
+        logger.info("Messages consumed: %i\tFile count: %i\tByte count: %i", msg_cnt, file_cnt, byte_cnt)
         if not received:
+            logger.info("No messages received, sleeping for %i seconds", FDR.queue_delay)
             time.sleep(FDR.queue_delay)
 
     # We've requested an exit
     if FDR.exiting:
         # Clean exit
-        print("Routine exit requested.")
+        logger.warning("Routine exit requested")
         sys.exit(0)
     else:
         # Something untoward has occurred
+        logger.error("Unexpected exit occurred")
         sys.exit(1)
 
 
@@ -226,6 +234,32 @@ if __name__ == '__main__':
     configuration.read(CONFIG_FILE)
     # Create our connector
     FDR = FDRConnector(configuration)
+    # Setup our root logger
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+    # Create our FDR logger
+    logger = logging.getLogger("FDR Connector")
+    # Console output handler
+    SH = logging.StreamHandler()
+    # Rotate log file handler
+    RFH = RotatingFileHandler(FDR.log_file, maxBytes=20971520, backupCount=5)
+    # Console output format
+    S_FORMAT = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    # Log file output format
+    F_FORMAT = logging.Formatter('%(asctime)s %(name)s %(levelname)s %(message)s')
+    # Set the console output level to WARNING
+    SH.setLevel(logging.WARNING)
+    # Set the log file output level to INFO
+    RFH.setLevel(logging.DEBUG)
+    # Add our console formatter to the console handler
+    SH.setFormatter(S_FORMAT)
+    # Add our log file formatter to the log file handler
+    RFH.setFormatter(F_FORMAT)
+    # Add our console handler to our logger
+    logger.addHandler(SH)
+    # Add our log file handler to our logger
+    logger.addHandler(RFH)
+    # Log our pre-startup event
+    logger.info("Process starting up")
     # Enable our graceful exit handler to allow uploads and artifact
     # cleanup to complete for SIGINT, SIGTERM and SIGQUIT signals.
     sig.signal(sig.SIGINT, partial(clean_exit, FDR))
@@ -245,10 +279,12 @@ if __name__ == '__main__':
                       )
     # If we are doing S3 uploads
     if FDR.target_bucket_name and FDR.target_region_name:
+        logger.info("Upload to AWS S3 enabled")
         # Connect to our target S3 bucket, uses the existing client configuration to connect (Not the CS provided ones)
         s3_target = boto3.client('s3', region_name=FDR.target_region_name)
     # Create our queue object for handling message traffic
     queue = sqs.Queue(url=FDR.queue_url)
+    logger.info("Startup complete")
     # Start consuming the replicator feed
     consume_data_replicator()
 
