@@ -3,6 +3,7 @@
 [![Bandit](https://github.com/CrowdStrike/FDR/actions/workflows/bandit.yml/badge.svg)](https://github.com/CrowdStrike/FDR/actions/workflows/bandit.yml)
 [![Flake8](https://github.com/CrowdStrike/FDR/actions/workflows/linting.yml/badge.svg)](https://github.com/CrowdStrike/FDR/actions/workflows/linting.yml)
 [![Python Lint](https://github.com/CrowdStrike/FDR/actions/workflows/pylint.yml/badge.svg)](https://github.com/CrowdStrike/FDR/actions/workflows/pylint.yml)
+[![CodeQL](https://github.com/CrowdStrike/FDR/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/CrowdStrike/FDR/actions/workflows/codeql-analysis.yml)
 
 The Falcon Data Replicator replicates log data from your CrowdStrike environment to a stand-alone target. This target can be a location on the file system, 
 or a cloud storage bucket.
