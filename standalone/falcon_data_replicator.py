@@ -199,7 +199,12 @@ def consume_data_replicator():
 
     # We've requested an exit
     if FDR.exiting:
+        # Clean exit
         print("Routine exit requested.")
+        sys.exit(0)
+    else:
+        # Something untoward has occurred
+        sys.exit(1)
 
 
 # Start our main routine
