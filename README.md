@@ -5,7 +5,7 @@
 [![Python Lint](https://github.com/CrowdStrike/FDR/actions/workflows/pylint.yml/badge.svg)](https://github.com/CrowdStrike/FDR/actions/workflows/pylint.yml)
 
 The Falcon Data Replicator replicates log data from your CrowdStrike environment
-to a stand-alone target. This target can be a location on the filesystem, or a 
+to a stand-alone target. This target can be a location on the file system, or a 
 cloud storage bucket.
 > Currently AWS is the only cloud provider implemented.
 ## Requirements
@@ -19,7 +19,7 @@ cloud storage bucket.
 ### Configuration
 The `falcon_data_replicator.ini` file contains all of the parameters necessary to configure the
 solution for replication to the local file system and / or a storage bucket in AWS S3. After 
-retreiving the AWS credentials and SQS queue details from your Falcon console, edit this file
+retrieving the AWS credentials and SQS queue details from your Falcon console, edit this file
 to reflect your environment.
 #### Required parameters
 The following parameters must be provided in order for the solution to operate.

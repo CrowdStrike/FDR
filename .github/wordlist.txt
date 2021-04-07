@@ -13,5 +13,6 @@ botocore
 dateutil
 jmespath
 urllib
+config
 socio
 sexualized
