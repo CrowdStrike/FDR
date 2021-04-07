@@ -239,24 +239,14 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
     # Create our FDR logger
     logger = logging.getLogger("FDR Connector")
-    # Console output handler
-    SH = logging.StreamHandler()
     # Rotate log file handler
     RFH = RotatingFileHandler(FDR.log_file, maxBytes=20971520, backupCount=5)
-    # Console output format
-    S_FORMAT = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
     # Log file output format
     F_FORMAT = logging.Formatter('%(asctime)s %(name)s %(levelname)s %(message)s')
-    # Set the console output level to WARNING
-    SH.setLevel(logging.WARNING)
     # Set the log file output level to INFO
     RFH.setLevel(logging.INFO)
-    # Add our console formatter to the console handler
-    SH.setFormatter(S_FORMAT)
     # Add our log file formatter to the log file handler
     RFH.setFormatter(F_FORMAT)
-    # Add our console handler to our logger
-    logger.addHandler(SH)
     # Add our log file handler to our logger
     logger.addHandler(RFH)
     # Log our pre-startup event
