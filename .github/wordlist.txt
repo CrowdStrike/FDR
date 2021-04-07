@@ -14,5 +14,6 @@ dateutil
 jmespath
 urllib
 config
+codebase
 socio
 sexualized

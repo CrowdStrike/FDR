@@ -26,7 +26,7 @@ The following parameters must be provided in order for the solution to operate.
 + `AWS_KEY` - AWS client ID provided to you by the CrowdStrike Falcon console
 + `AWS_SECRET` - AWS client secret provided to you by the CrowdStrike Falcon console
 + `QUEUE_URL` - AWS SQS queue URL provided to you by the CrowdStrike Falcon console
-+ `OUTPUT_PATH` - File path where downloaded files will be stored
++ `OUTPUT_PATH` - File path where downloaded files will be stored, not used for in-memory transfers
 + `VISIBILITY_TIMEOUT` - Time in seconds before a message is returned back to the SQS queue
 + `REGION_NAME` - The name of the AWS region where your CrowdStrike SQS queue resides
 + `MESSAGE_DELAY` - The time in seconds to wait in between the processing of each message
