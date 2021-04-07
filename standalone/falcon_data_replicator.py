@@ -74,7 +74,6 @@ class FDRConnector:  # pylint: disable=R0902
                     # The name of our target S3 bucket
                     self.target_bucket_name = config["Destination Data"]["TARGET_BUCKET"]
 
-
                 if config["Destination Data"]["TARGET_REGION"]:
                     # The AWS region name our target S3 bucket resides in
                     self.target_region_name = config["Destination Data"]["TARGET_REGION"]
