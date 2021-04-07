@@ -250,7 +250,7 @@ if __name__ == '__main__':
     # Set the console output level to WARNING
     SH.setLevel(logging.WARNING)
     # Set the log file output level to INFO
-    RFH.setLevel(logging.DEBUG)
+    RFH.setLevel(logging.INFO)
     # Add our console formatter to the console handler
     SH.setFormatter(S_FORMAT)
     # Add our log file formatter to the log file handler
