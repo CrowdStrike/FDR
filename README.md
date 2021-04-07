@@ -31,6 +31,7 @@ The following parameters must be provided in order for the solution to operate.
 + `REGION_NAME` - The name of the AWS region where your CrowdStrike SQS queue resides
 + `MESSAGE_DELAY` - The time in seconds to wait in between the processing of each message
 + `QUEUE_DELAY` - The time in seconds to wait before each check of the queue for more messages
++ `LOG_FILE` - The name and path of the the log file
 #### Destination parameters
 The following parameters configure our destination details. If not these parameters are not present,
 upload to our bucket is skipped and the local files are retained after download.
