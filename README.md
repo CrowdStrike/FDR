@@ -4,9 +4,8 @@
 [![Flake8](https://github.com/CrowdStrike/FDR/actions/workflows/linting.yml/badge.svg)](https://github.com/CrowdStrike/FDR/actions/workflows/linting.yml)
 [![Python Lint](https://github.com/CrowdStrike/FDR/actions/workflows/pylint.yml/badge.svg)](https://github.com/CrowdStrike/FDR/actions/workflows/pylint.yml)
 
-The Falcon Data Replicator replicates log data from your CrowdStrike environment
-to a stand-alone target. This target can be a location on the file system, or a 
-cloud storage bucket.
+The Falcon Data Replicator replicates log data from your CrowdStrike environment to a stand-alone target. This target can be a location on the file system, 
+or a cloud storage bucket.
 > Currently AWS is the only cloud provider implemented.
 ## Requirements
 + Python 3.6+
@@ -38,8 +37,7 @@ upload to our bucket is skipped and the local files are retained after download.
 + `TARGET_BUCKET` - The name of the AWS bucket we will use for our target destination
 + `TARGET_REGION` - The name of the AWS region our target bucket resides within
 + `REMOVE_LOCAL_FILE` - Boolean representing whether or not to remove local files after they are uploaded
-+ `IN_MEMORY_TRANSFER_ONLY` - Transfer the file from the source bucket to the destination bucket without
-storing the file on the local file system.
++ `IN_MEMORY_TRANSFER_ONLY` - Transfer the file from the source bucket to the destination bucket without storing the file on the local file system.
 ### Running the solution
 After updating the configuration file to reflect your environment specifics, you can run this solution using:
 ```bash
