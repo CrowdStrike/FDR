@@ -12,6 +12,7 @@
 ###################################################################################################
 #
 import json
+import io
 import os
 import sys
 import time
@@ -60,35 +61,40 @@ class FDRConnector:  # pylint: disable=R0902
         self.log_file = config["Source Data"]["LOG_FILE"]
         # AWS Region name for our source S3 bucket
         self.region_name = config["Source Data"]["REGION_NAME"]
+        self.in_memory_transfer_only = None  # Defaults to writing to the local file system
         self.target_region_name = None  # Defaults to no upload
         self.target_bucket_name = None  # Defaults to no upload
         self.remove_local_file = False  # Defaults to keeping files locally
         try:
+            # Fail on these in order.  If REMOVE_LOCAL_FILE, or IN_MEMORY_TRANSFER_ONLY
+            # fail, processing will still continue.
             if "Destination Data" in config:
                 # If it's not present, we don't need it
                 if config["Destination Data"]["TARGET_BUCKET"]:
                     # The name of our target S3 bucket
                     self.target_bucket_name = config["Destination Data"]["TARGET_BUCKET"]
-        except KeyError:
-            pass
-        try:
-            if "Destination Data" in config:
-                # If it's not present, we don't need it
+
+
                 if config["Destination Data"]["TARGET_REGION"]:
                     # The AWS region name our target S3 bucket resides in
                     self.target_region_name = config["Destination Data"]["TARGET_REGION"]
-        except KeyError:
-            pass
-        try:
-            if "Destination Data" in config:
-                # If it's not present, we don't need it
-                if config["Destination Data"]["remove_local_file"]:
+
+                if config["Destination Data"]["REMOVE_LOCAL_FILE"]:
                     # Should we remove local files after we upload them?
-                    remove = config["Destination Data"]["remove_local_file"]
+                    remove = config["Destination Data"]["REMOVE_LOCAL_FILE"]
                     if remove.lower() in "true,yes".split(","):  # pylint: disable=R1703
                         self.remove_local_file = True
                     else:
                         self.remove_local_file = False
+
+                if config["Destination Data"]["IN_MEMORY_TRANSFER_ONLY"]:
+                    # Transfer to S3 without using the local file system?
+                    mem_trans = config["Destination Data"]["IN_MEMORY_TRANSFER_ONLY"]
+                    if mem_trans.lower() in "true,yes".split(","):  # pylint: disable=R1703
+                        self.in_memory_transfer_only = True
+                    else:
+                        self.in_memory_transfer_only = False
+
         except KeyError:
             pass
 
@@ -112,30 +118,34 @@ def clean_exit(stat, signal, frame):  # pylint: disable=W0613
     return True
 
 
-def handle_file(path, key):
+def handle_file(path, key, file_object=None):
     """If configured, upload this file to our target bucket and remove it."""
     # If we've defined a target bucket
     if FDR.target_bucket_name:
-        # Open our local file (binary)
-        with open(path, 'rb') as data:
-            # Perform the upload to the same key in our target bucket
-            s3_target.upload_fileobj(data, FDR.target_bucket_name, key)
-        logger.info('Uploaded file to path %s', key)
-        # Only perform this step if configured to do so
-        if FDR.remove_local_file:
-            # Remove the file from the local file system
-            os.remove(path)
-            logger.info("Removed %s", path)
-            # Remove the temporary folder from the local file system
-            os.rmdir(os.path.dirname(path))
-            logger.info("Removed %s", os.path.dirname(path))
-            pure = pathlib.PurePath(path)
-            # Remove the parent temporary folders if they exist
-            os.rmdir(pure.parent.parent)
-            logger.info("Removed %s", pure.parent.parent)
-            if FDR.output_path not in pure.parent.parent.parent.name:
-                os.rmdir(pure.parent.parent.parent)
-                logger.info("Removed %s", pure.parent.parent.parent)
+        if not file_object:
+            # Open our local file (binary)
+            with open(path, 'rb') as data:
+                # Perform the upload to the same key in our target bucket
+                s3_target.upload_fileobj(data, FDR.target_bucket_name, key)
+            logger.info('Uploaded file to path %s', key)
+            # Only perform this step if configured to do so
+            if FDR.remove_local_file:
+                # Remove the file from the local file system
+                os.remove(path)
+                logger.info("Removed %s", path)
+                # Remove the temporary folder from the local file system
+                os.rmdir(os.path.dirname(path))
+                logger.info("Removed %s", os.path.dirname(path))
+                pure = pathlib.PurePath(path)
+                # Remove the parent temporary folders if they exist
+                os.rmdir(pure.parent.parent)
+                logger.info("Removed %s", pure.parent.parent)
+                if FDR.output_path not in pure.parent.parent.parent.name:
+                    os.rmdir(pure.parent.parent.parent)
+                    logger.info("Removed %s", pure.parent.parent.parent)
+        else:
+            s3_target.upload_fileobj(file_object, FDR.target_bucket_name, key)
+            logger.info('Uploaded file to path %s', key)
     # We're done
     return True
 
@@ -156,15 +166,28 @@ def download_message_files(msg):
     for s3_file in msg['files']:
         # Retrieve the bucket path for this file
         s3_path = s3_file['path']
-        # Create a local path name for our destination file based off of the S3 path
-        local_path = os.path.join(FDR.output_path, s3_path)
-        # Open our local file for binary write
-        with open(local_path, 'wb') as data:
-            # Download the file from S3 into our opened local file
-            s3.download_fileobj(msg['bucket'], s3_path, data)
-        logger.info('Downloaded file to path %s', local_path)
-        # Handle S3 upload if configured
-        handle_file(local_path, s3_path)
+        if not FDR.in_memory_transfer_only:
+            # Create a local path name for our destination file based off of the S3 path
+            local_path = os.path.join(FDR.output_path, s3_path)
+            # Open our local file for binary write
+            with open(local_path, 'wb') as data:
+                # Download the file from S3 into our opened local file
+                s3.download_fileobj(msg['bucket'], s3_path, data)
+            logger.info('Downloaded file to path %s', local_path)
+            # Handle S3 upload if configured
+            handle_file(local_path, s3_path, None)
+        else:
+            logger.info('Downloading file to memory')
+            s3t = boto3.resource("s3",
+                                 region_name=FDR.region_name,
+                                 aws_access_key_id=FDR.aws_key,
+                                 aws_secret_access_key=FDR.aws_secret
+                                 )
+            bkt = s3t.Bucket(msg['bucket'])
+            obj = bkt.Object(s3_path)
+            stream = io.BytesIO()
+            obj.download_fileobj(stream)
+            handle_file(None, s3_path, stream)
 
 
 def consume_data_replicator():

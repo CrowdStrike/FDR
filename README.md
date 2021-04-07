@@ -38,6 +38,8 @@ upload to our bucket is skipped and the local files are retained after download.
 + `TARGET_BUCKET` - The name of the AWS bucket we will use for our target destination
 + `TARGET_REGION` - The name of the AWS region our target bucket resides within
 + `REMOVE_LOCAL_FILE` - Boolean representing whether or not to remove local files after they are uploaded
++ `IN_MEMORY_TRANSFER_ONLY` - Transfer the file from the source bucket to the destination bucket without
+storing the file on the local file system.
 ### Running the solution
 After updating the configuration file to reflect your environment specifics, you can run this solution using:
 ```bash
