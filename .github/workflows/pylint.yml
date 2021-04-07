@@ -26,4 +26,4 @@ jobs:
         python -m pip install pylint
     - name: Lint Stand-alone with pylint
       run: |
-        pylint standalone
+        pylint standalone --max-line-length=127
