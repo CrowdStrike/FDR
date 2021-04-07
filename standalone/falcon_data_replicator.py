@@ -5,6 +5,8 @@
 # |  _| (_| | | (_| (_) | | | | | |_| | (_| | || (_| | |  _ <  __/ |_) | | | (_| (_| | || (_) | |
 # |_|  \__,_|_|\___\___/|_| |_| |____/ \__,_|\__\__,_| |_| \_\___| .__/|_|_|\___\__,_|\__\___/|_|
 #                                                                |_|
+# Local File System / AWS S3 connector
+#
 ###################################################################################################
 # NOTE: See https://github.com/CrowdStrike/FDR for details on how to use this application.        #
 ###################################################################################################
@@ -27,12 +29,64 @@ except ImportError as err:
     print('The AWS boto3 library is required to run Falcon Data Replicator.\nPlease execute "pip3 install boto3"')
 
 
-# Class to track our running status, so we can create a graceful exit handler without using a global
-class Status:
-    """The Status class tracks the status of our process."""
-    def __init__(self):
+# Class to hold our connector config and to track our running status
+class FDRConnector:  # pylint: disable=R0902
+    """The FDRConnector class contains the details of this connection and tracks the status of our process."""
+    def __init__(self, config: configparser.ConfigParser):
         """Initialize our status class"""
         self.set_exit(False)
+        # We cannot read our source parameters, exit the routine
+        if "Source Data" not in config:
+            print("Unable to load configuration file parameters. Routine halted.")
+            sys.exit(1)
+
+        # AWS Client ID - Provided by CrowdStrike
+        self.aws_key = config["Source Data"]["AWS_KEY"]
+        # AWS Client Secret - Provided by CrowdStrike
+        self.aws_secret = config["Source Data"]["AWS_SECRET"]
+        # AWS SQS queue URL - Provided by CrowdStrike
+        self.queue_url = config["Source Data"]["QUEUE_URL"]
+        # Local file output location
+        self.output_path = config["Source Data"]["OUTPUT_PATH"]
+        # Timeout before messages are returned to the queue
+        self.visibility_timeout = int(config["Source Data"]["VISIBILITY_TIMEOUT"])
+        # Message delay
+        self.message_delay = int(config["Source Data"]["MESSAGE_DELAY"])
+        # Queue delay
+        self.queue_delay = int(config["Source Data"]["QUEUE_DELAY"])
+        # AWS Region name for our source S3 bucket
+        self.region_name = config["Source Data"]["REGION_NAME"]
+        self.target_region_name = None  # Defaults to no upload
+        self.target_bucket_name = None  # Defaults to no upload
+        self.remove_local_file = False  # Defaults to keeping files locally
+        try:
+            if "Destination Data" in config:
+                # If it's not present, we don't need it
+                if config["Destination Data"]["TARGET_BUCKET"]:
+                    # The name of our target S3 bucket
+                    self.target_bucket_name = config["Destination Data"]["TARGET_BUCKET"]
+        except AttributeError:
+            pass
+        try:
+            if "Destination Data" in config:
+                # If it's not present, we don't need it
+                if config["Destination Data"]["TARGET_REGION"]:
+                    # The AWS region name our target S3 bucket resides in
+                    self.target_region_name = config["Destination Data"]["TARGET_REGION"]
+        except AttributeError:
+            pass
+        try:
+            if "Destination Data" in config:
+                # If it's not present, we don't need it
+                if config["Destination Data"]["remove_local_file"]:
+                    # Should we remove local files after we upload them?
+                    remove = config["Destination Data"]["remove_local_file"]
+                    if remove.lower() in "true,yes".split(","):  # pylint: disable=R1703
+                        self.remove_local_file = True
+                    else:
+                        self.remove_local_file = False
+        except AttributeError:
+            pass
 
     @property
     def exiting(self):
@@ -46,109 +100,25 @@ class Status:
         return True
 
 
-# This method is used as an exit handler. When a cancel or interrupt is received, this method forces
-# FDR to finish processing the file it is working on before exiting.
+# This method is used as an exit handler. When a quit, cancel or interrupt is received,
+# this method forces FDR to finish processing the file it is working on before exiting.
 def clean_exit(stat, signal, frame):  # pylint: disable=W0613
-    """Graceful exit handler for keyboard interrupt"""
+    """Graceful exit handler for SIGINT, SIGQUIT and SIGTERM"""
     stat.set_exit(True)
     return True
-
-
-parser = argparse.ArgumentParser("Falcon Data Replicator")
-parser.add_argument("-f", "--config_file", dest="config_file", help="Path to the configuration file", required=False)
-args = parser.parse_args()
-if not args.config_file:
-    CONFIG_FILE = "../falcon_data_replicator.ini"
-else:
-    CONFIG_FILE = args.config_file
-
-
-# GLOBALS
-config = configparser.ConfigParser()
-config.read(CONFIG_FILE)
-# We cannot read our source parameters, exit the routine
-if "Source Data" not in config:
-    print("Unable to load configuration file parameters. Routine halted.")
-    sys.exit(1)
-
-# AWS Client ID - Provided by CrowdStrike
-AWS_KEY = config["Source Data"]["AWS_KEY"]
-# AWS Client Secret - Provided by CrowdStrike
-AWS_SECRET = config["Source Data"]["AWS_SECRET"]
-# AWS SQS queue URL - Provided by CrowdStrike
-QUEUE_URL = config["Source Data"]["QUEUE_URL"]
-# Local file output location
-OUTPUT_PATH = config["Source Data"]["OUTPUT_PATH"]
-# Timeout before messages are returned to the queue
-VISIBILITY_TIMEOUT = int(config["Source Data"]["VISIBILITY_TIMEOUT"])
-# Message delay
-MESSAGE_DELAY = int(config["Source Data"]["MESSAGE_DELAY"])
-# Queue delay
-QUEUE_DELAY = int(config["Source Data"]["QUEUE_DELAY"])
-# AWS Region name for our source S3 bucket
-REGION_NAME = config["Source Data"]["REGION_NAME"]
-TARGET_REGION_NAME = None  # Defaults to no upload
-TARGET_BUCKET_NAME = None  # Defaults to no upload
-REMOVE_LOCAL_FILE = False  # Defaults to keeping files locally
-try:
-    if "Destination Data" in config:
-        # If it's not present, we don't need it
-        if config["Destination Data"]["TARGET_BUCKET"]:
-            # The name of our target S3 bucket
-            TARGET_BUCKET_NAME = config["Destination Data"]["TARGET_BUCKET"]
-except AttributeError:
-    pass
-try:
-    if "Destination Data" in config:
-        # If it's not present, we don't need it
-        if config["Destination Data"]["TARGET_REGION"]:
-            # The AWS region name our target S3 bucket resides in
-            TARGET_REGION_NAME = config["Destination Data"]["TARGET_REGION"]
-except AttributeError:
-    pass
-try:
-    if "Destination Data" in config:
-        # If it's not present, we don't need it
-        if config["Destination Data"]["REMOVE_LOCAL_FILE"]:
-            # Should we remove local files after we upload them?
-            remove = config["Destination Data"]["REMOVE_LOCAL_FILE"]
-            if remove.lower() in "true,yes".split(","):  # pylint: disable=R1703
-                REMOVE_LOCAL_FILE = True
-            else:
-                REMOVE_LOCAL_FILE = False
-except AttributeError:
-    pass
-
-# Create our loop tracker and default our run flag to on
-status = Status()
-# Enable our graceful exit handler to allow uploads and artifact
-# cleanup to complete for SIGINT, SIGTERM and SIGQUIT signals.
-sig.signal(sig.SIGINT, partial(clean_exit, status))
-sig.signal(sig.SIGTERM, partial(clean_exit, status))
-sig.signal(sig.SIGQUIT, partial(clean_exit, status))
-# Connect to our CrowdStrike provided SQS queue
-sqs = boto3.resource('sqs', region_name=REGION_NAME, aws_access_key_id=AWS_KEY, aws_secret_access_key=AWS_SECRET)
-# Connect to our CrowdStrike provided S3 bucket
-s3 = boto3.client('s3', region_name=REGION_NAME, aws_access_key_id=AWS_KEY, aws_secret_access_key=AWS_SECRET)
-# If we are doing S3 uploads
-if TARGET_BUCKET_NAME and TARGET_REGION_NAME:
-    # Connect to our target S3 bucket
-    s3_target = boto3.client('s3', region_name=TARGET_REGION_NAME)  # Leveraging the existing client configuration to connect
-# Create our queue object for handling message traffic
-queue = sqs.Queue(url=QUEUE_URL)
 
 
 def handle_file(path, key):
     """If configured, upload this file to our target bucket and remove it."""
     # If we've defined a target bucket
-    if TARGET_BUCKET_NAME:
+    if FDR.target_bucket_name:
         # Open our local file (binary)
         with open(path, 'rb') as data:
             # Perform the upload to the same key in our target bucket
-            s3_target.upload_fileobj(data, TARGET_BUCKET_NAME, key)
+            s3_target.upload_fileobj(data, FDR.target_bucket_name, key)
         print('Uploaded file to path %s' % key)
         # Only perform this step if configured to do so
-        if REMOVE_LOCAL_FILE:
+        if FDR.remove_local_file:
             # Remove the file from the local file system
             os.remove(path)
             print(f"Removed {path}")
@@ -159,7 +129,7 @@ def handle_file(path, key):
             # Remove the parent temporary folders if they exist
             os.rmdir(pure.parent.parent)
             print(f"Removed {pure.parent.parent}")
-            if OUTPUT_PATH not in pure.parent.parent.parent.name:
+            if FDR.output_path not in pure.parent.parent.parent.name:
                 os.rmdir(pure.parent.parent.parent)
                 print(f"Removed {pure.parent.parent.parent}")
     # We're done
@@ -167,14 +137,13 @@ def handle_file(path, key):
 
 
 def download_message_files(msg):
-    """Downloads the files from s3 referenced in msg and places them in OUTPUT_PATH.
+    """Downloads the files from s3 referenced in msg and places them in output_path.
 
     download_message_files function will iterate through every file listed at msg['filePaths'],
-    move it to a local path with name "{OUTPUT_PATH}/{s3_path}",
-    and then call handle_file(path).
+    move it to our output_path, and then call handle_file.
     """
     # Construct output path for this message's files
-    msg_output_path = os.path.join(OUTPUT_PATH, msg['pathPrefix'])
+    msg_output_path = os.path.join(FDR.output_path, msg['pathPrefix'])
     # Ensure directory exists at output path
     if not os.path.exists(msg_output_path):
         # Create it if it doesn't
@@ -184,7 +153,7 @@ def download_message_files(msg):
         # Retrieve the bucket path for this file
         s3_path = s3_file['path']
         # Create a local path name for our destination file based off of the S3 path
-        local_path = os.path.join(OUTPUT_PATH, s3_path)
+        local_path = os.path.join(FDR.output_path, s3_path)
         # Open our local file for binary write
         with open(local_path, 'wb') as data:
             # Download the file from S3 into our opened local file
@@ -202,11 +171,11 @@ def consume_data_replicator():
     byte_cnt = 0
 
     # Continuously poll the queue for new messages.
-    while not status.exiting:
+    while not FDR.exiting:
         received = False
         # Receive messages from queue if any exist
         # (NOTE: receive_messages() only receives a few messages at a time, it does NOT exhaust the queue)
-        for msg in queue.receive_messages(VisibilityTimeout=VISIBILITY_TIMEOUT):
+        for msg in queue.receive_messages(VisibilityTimeout=FDR.visibility_timeout):
             received = True
             # Increment our message counter
             msg_cnt += 1
@@ -218,23 +187,64 @@ def consume_data_replicator():
             file_cnt += body['fileCount']
             # Increment our byte count by using the totalSize value in our message
             byte_cnt += body['totalSize']
-            # Remove our message from the queue, if this is not performed in VISIBILITY_TIMEOUT seconds
+            # Remove our message from the queue, if this is not performed in visibility_timeout seconds
             # this message will be restored to the queue for follow-up processing
             msg.delete()
             # Sleep until our next message iteration
-            time.sleep(MESSAGE_DELAY)
+            time.sleep(FDR.message_delay)
 
         print("Messages consumed: %i\tFile count: %i\tByte count: %i" % (msg_cnt, file_cnt, byte_cnt))
         if not received:
-            time.sleep(QUEUE_DELAY)
+            time.sleep(FDR.queue_delay)
 
     # We've requested an exit
-    if status.exiting:
+    if FDR.exiting:
         print("Routine exit requested.")
 
 
 # Start our main routine
 if __name__ == '__main__':
+    # Configure our accepted command line parameters
+    parser = argparse.ArgumentParser("Falcon Data Replicator")
+    parser.add_argument("-f", "--config_file", dest="config_file", help="Path to the configuration file", required=False)
+    # Parse any parameters passed at runtime
+    args = parser.parse_args()
+    # If we were not provided a configuration file name
+    if not args.config_file:
+        # Use the default name / location provided in our repo
+        CONFIG_FILE = "../falcon_data_replicator.ini"
+    else:
+        # Use the configuration file provided at runtime
+        CONFIG_FILE = args.config_file
+    # Read in our configuration parameters
+    configuration = configparser.ConfigParser()
+    configuration.read(CONFIG_FILE)
+    # Create our connector
+    FDR = FDRConnector(configuration)
+    # Enable our graceful exit handler to allow uploads and artifact
+    # cleanup to complete for SIGINT, SIGTERM and SIGQUIT signals.
+    sig.signal(sig.SIGINT, partial(clean_exit, FDR))
+    sig.signal(sig.SIGTERM, partial(clean_exit, FDR))
+    sig.signal(sig.SIGQUIT, partial(clean_exit, FDR))
+    # Connect to our CrowdStrike provided SQS queue
+    sqs = boto3.resource('sqs',
+                         region_name=FDR.region_name,
+                         aws_access_key_id=FDR.aws_key,
+                         aws_secret_access_key=FDR.aws_secret
+                         )
+    # Connect to our CrowdStrike provided S3 bucket
+    s3 = boto3.client('s3',
+                      region_name=FDR.region_name,
+                      aws_access_key_id=FDR.aws_key,
+                      aws_secret_access_key=FDR.aws_secret
+                      )
+    # If we are doing S3 uploads
+    if FDR.target_bucket_name and FDR.target_region_name:
+        # Connect to our target S3 bucket, uses the existing client configuration to connect (Not the CS provided ones)
+        s3_target = boto3.client('s3', region_name=FDR.target_region_name)
+    # Create our queue object for handling message traffic
+    queue = sqs.Queue(url=FDR.queue_url)
+    # Start consuming the replicator feed
     consume_data_replicator()
 
 
