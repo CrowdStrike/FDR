@@ -183,7 +183,6 @@ def consume_data_replicator():
             received = True
             # Increment our message counter
             msg_cnt += 1
-
             logger.info("Processing message %i [%s]", msg_cnt, msg.message_id)
             # Grab the actual message body
             body = json.loads(msg.body)
