@@ -69,7 +69,7 @@ class FDRConnector:  # pylint: disable=R0902
                 if config["Destination Data"]["TARGET_BUCKET"]:
                     # The name of our target S3 bucket
                     self.target_bucket_name = config["Destination Data"]["TARGET_BUCKET"]
-        except AttributeError:
+        except KeyError:
             pass
         try:
             if "Destination Data" in config:
@@ -77,7 +77,7 @@ class FDRConnector:  # pylint: disable=R0902
                 if config["Destination Data"]["TARGET_REGION"]:
                     # The AWS region name our target S3 bucket resides in
                     self.target_region_name = config["Destination Data"]["TARGET_REGION"]
-        except AttributeError:
+        except KeyError:
             pass
         try:
             if "Destination Data" in config:
@@ -89,7 +89,7 @@ class FDRConnector:  # pylint: disable=R0902
                         self.remove_local_file = True
                     else:
                         self.remove_local_file = False
-        except AttributeError:
+        except KeyError:
             pass
 
     @property
