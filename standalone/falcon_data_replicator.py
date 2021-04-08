@@ -61,7 +61,7 @@ class FDRConnector:  # pylint: disable=R0902
         self.log_file = config["Source Data"]["LOG_FILE"]
         # AWS Region name for our source S3 bucket
         self.region_name = config["Source Data"]["REGION_NAME"]
-        self.in_memory_transfer_only = None  # Defaults to writing to the local file system
+        self.in_memory_transfer_only = False  # Defaults to writing to the local file system
         self.target_region_name = None  # Defaults to no upload
         self.target_bucket_name = None  # Defaults to no upload
         self.remove_local_file = False  # Defaults to keeping files locally
