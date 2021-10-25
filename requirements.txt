@@ -4,7 +4,7 @@
 #
 #    pip-compile
 #
-boto3==1.18.64
+boto3==1.19.2
     # via -r requirements.in
 botocore==1.21.63
     # via
