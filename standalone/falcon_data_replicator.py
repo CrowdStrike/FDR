@@ -184,8 +184,10 @@ def download_message_files(msg):
                                  )
             bkt = s3t.Bucket(msg['bucket'])
             obj = bkt.Object(s3_path)
-            stream = io.BytesIO()
+            stream = io.BytesIO()            
             obj.download_fileobj(stream)
+            # Seek to the beginning of the stream before passing it to the upload handler
+            stream.seek(0)
             handle_file(None, s3_path, stream)
 
 
