@@ -6,7 +6,7 @@
 #
 boto3==1.24.42
     # via -r requirements.in
-botocore==1.27.42
+botocore==1.27.51
     # via
     #   boto3
     #   s3transfer
