@@ -30,6 +30,7 @@ try:
 except ImportError as err:
     print(err)
     print('The AWS boto3 library is required to run Falcon Data Replicator.\nPlease execute "pip3 install boto3"')
+    sys.exit(1)
 
 
 # Class to hold our connector config and to track our running status
