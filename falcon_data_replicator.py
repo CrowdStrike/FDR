@@ -41,7 +41,7 @@ from logging.handlers import RotatingFileHandler
 from functools import partial
 from concurrent.futures import ThreadPoolExecutor
 from threading import main_thread
-from ocsf import *
+from ocsf import transform_fdr_data_to_ocsf_data, upload_parquet_files_to_s3
 from fdr.fdrconnector import FDRConnector
 
 # This solution is dependant upon the AWS boto3 Python library
@@ -432,8 +432,6 @@ if __name__ == '__main__':
     queue, s3_cs = get_crowdstrike_aws_objects(FDR)
     # If we are doing S3 uploads
     s3_target = get_s3_target(FDR, logger)
-    # Create our queue object for handling message traffic
-    # queue = sqs.Queue(url=FDR.queue_url)
     logger.info("Startup complete")
     # Start consuming the replicator feed
     consume_data_replicator(s3_target, s3_cs, logger)
