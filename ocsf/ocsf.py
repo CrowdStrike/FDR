@@ -279,7 +279,7 @@ def apply_transform(src: dict, mapping: dict):
     optional_using = mapping.get('using')
     optional_translate = mapping.get('transform')
     optional_items = mapping.get('items')
-    return_func = 'map_ours_theirs'
+    return_func = ''
     if ours and not isinstance(ours, list):
         if theirs and not isinstance(theirs, list):
             if src.get(ours) and not optional_translate and not optional_using and not optional_items:
