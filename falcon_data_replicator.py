@@ -51,7 +51,7 @@ except ImportError as err:
     print(err)
     raise SystemExit("The AWS boto3 library is required to run Falcon "
                      "Data Replicator.\nPlease execute 'pip3 install boto3'"
-                     )
+                     ) from err
 
 
 # This method is used as an exit handler. When a quit, cancel or interrupt is received,
@@ -63,6 +63,7 @@ def clean_exit(stat, signal, frame):  # pylint: disable=W0613
 
 
 def do_keyed_delete(file_target: str, log: logging.Logger):
+    """Remove temporary folder artifacts."""
     os.remove(file_target)
     os.rmdir(os.path.dirname(file_target))
     pure = pathlib.PurePath(file_target)
@@ -222,6 +223,7 @@ def process_queue_message(msg, s3b, s3o, log_util: logging.Logger):
 
 
 def do_shutdown(log_util: logging.Logger, clean: bool = False):
+    """Perform a graceful shutdown."""
     if clean:
         log_util.warning("Routine exit requested")
         sys.exit(0)
@@ -230,7 +232,7 @@ def do_shutdown(log_util: logging.Logger, clean: bool = False):
         sys.exit(1)
 
 
-def consume_data_replicator(s3_bkt, s3_cs, log: logging.Logger):
+def consume_data_replicator(s3_bkt, s3_cs_bkt, log: logging.Logger):
     """Consume from data replicator and track number of messages/files/bytes downloaded."""
     # Tracking details
     total_event_count = 0
@@ -247,10 +249,10 @@ def consume_data_replicator(s3_bkt, s3_cs, log: logging.Logger):
         received = False
         # Receive messages from queue if any exist and send each message to it's own thread for processing
         # (NOTE: receive_messages() only receives a few messages at a time, it does NOT exhaust the queue)
-        # 
+        #
         with ThreadPoolExecutor(FDR.max_threads, thread_name_prefix="thread") as executor:
             futures = {
-                executor.submit(process_queue_message, msg, s3_bkt, s3_cs, log)
+                executor.submit(process_queue_message, msg, s3_bkt, s3_cs_bkt, log)
                 for msg in queue.receive_messages(VisibilityTimeout=FDR.visibility_timeout, MaxNumberOfMessages=10)
             }
             max_total_download_time_sec = 0.0
@@ -271,8 +273,7 @@ def consume_data_replicator(s3_bkt, s3_cs, log: logging.Logger):
                 if max_total_upload_time_sec < res[3]['total_upload_time_sec']:
                     max_total_upload_time_sec = res[3]['total_upload_time_sec']
                 m_tot_time_sec = max_total_download_time_sec + max_total_transform_time_sec + max_total_upload_time_sec
-                if max_total_time_sec < m_tot_time_sec:
-                    max_total_time_sec = m_tot_time_sec
+                max_total_time_sec = max(max_total_time_sec, m_tot_time_sec)
 
         if not received:
             log.info("No messages received, sleeping for %i seconds", FDR.queue_delay)
@@ -332,15 +333,15 @@ def setup_logging(connector: FDRConnector):
     # Create our FDR logger
     log_util = logging.getLogger("FDR")
     # Rotate log file handler
-    RFH = RotatingFileHandler(connector.log_file, maxBytes=20971520, backupCount=5)
+    rfh = RotatingFileHandler(connector.log_file, maxBytes=20971520, backupCount=5)
     # Log file output format
-    F_FORMAT = logging.Formatter('%(asctime)s %(levelname)-8s %(name)s/%(threadName)-10s %(message)s')
+    f_format = logging.Formatter('%(asctime)s %(levelname)-8s %(name)s/%(threadName)-10s %(message)s')
     # Set the log file output level to INFO
-    RFH.setLevel(logging.INFO)
+    rfh.setLevel(logging.INFO)
     # Add our log file formatter to the log file handler
-    RFH.setFormatter(F_FORMAT)
+    rfh.setFormatter(f_format)
     # Add our log file handler to our logger
-    log_util.addHandler(RFH)
+    log_util.addHandler(rfh)
     # Log our pre-startup event
     log_util.info(" _____ ____  ____        _")
     log_util.info("|  ___|  _ \\|  _ \\      (.\\")
@@ -367,16 +368,16 @@ def get_crowdstrike_aws_objects(connector: FDRConnector):
                          aws_secret_access_key=connector.aws_secret
                          )
     # Connect to our CrowdStrike provided S3 bucket
-    s3 = boto3.client('s3',
-                      region_name=connector.region_name,
-                      aws_access_key_id=connector.aws_key,
-                      aws_secret_access_key=connector.aws_secret
-                      )
+    s3bkt = boto3.client('s3',
+                         region_name=connector.region_name,
+                         aws_access_key_id=connector.aws_key,
+                         aws_secret_access_key=connector.aws_secret
+                         )
 
     # Create our queue object for handling message traffic
     sqs_queue = sqs.Queue(url=FDR.queue_url)
 
-    return sqs_queue, s3
+    return sqs_queue, s3bkt
 
 
 def get_s3_target(connector: FDRConnector, log_util: logging.Logger):
@@ -406,13 +407,13 @@ def initialize_connector(cmd_line: argparse.Namespace):
     # If we were not provided a configuration file name
     if not cmd_line.config_file:
         # Use the default name / location provided in our repo
-        CONFIG_FILE = "falcon_data_replicator.ini"
+        config_file = "falcon_data_replicator.ini"
     else:
         # Use the configuration file provided at runtime
-        CONFIG_FILE = cmd_line.config_file
+        config_file = cmd_line.config_file
     # Read in our configuration parameters
     configuration = configparser.ConfigParser()
-    configuration.read(CONFIG_FILE)
+    configuration.read(config_file)
     # Create our connector
     return FDRConnector(configuration)
 
