@@ -20,14 +20,23 @@ jobs:
         python-version: ['3.9']
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
         python -m pip install pylint
-    - name: Lint Stand-alone with pylint
+    - name: Install package dependencies
       run: |
-        pylint standalone --max-line-length=127
+        python -m pip install -r requirements.txt
+    - name: Lint main with pylint
+      run: |
+        pylint *.py
+    - name: Lint ocsf with pylint
+      run: |
+        pylint ocsf
+    - name: Lint fdr with pylint
+      run: |
+        pylint fdr
