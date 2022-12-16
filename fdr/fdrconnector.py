@@ -1,3 +1,4 @@
+"""Falcon Data Replicator - Connection configuration class."""
 import os
 import sys
 import configparser
