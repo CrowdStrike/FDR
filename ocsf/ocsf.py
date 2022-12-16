@@ -1,15 +1,16 @@
+"""Transforms FDR data to OCSF Format and writes in parquet file and uploads the file to AWS Security Lake"""
 import glob
 import gzip
 import json
 import os
 import re
+import threading
 from datetime import datetime
 from functools import reduce
+from logging import Logger
 from filelock import FileLock
 import pandas as pd
-from logging import Logger
 import yaml
-import threading
 
 NEWLINE = ord('\n')
 
@@ -27,9 +28,10 @@ WRITE_UPLOAD_THREAD_LOCK = threading.Lock()
 
 
 def upload_parquet_files_to_s3(fdr, s3_target, log_utl: Logger):
+    """Uploads parquet files to s3"""
     if fdr.target_bucket_name:
         with WRITE_UPLOAD_THREAD_LOCK:
-            for root, directories, filenames in os.walk('ext'):
+            for root, _, filenames in os.walk('ext'):
                 for filename in filenames:
                     upload_file_path = os.path.join(root, filename)
                     if filename.endswith('parquet') and \
@@ -44,13 +46,14 @@ def upload_parquet_files_to_s3(fdr, s3_target, log_utl: Logger):
                             os.remove(upload_file_path)
 
 
-def get_bucket_path(ts):
+def get_bucket_path(timestamp):
     """5-minute window bucket based on class_uid_path"""
-    bucket = int(datetime.fromtimestamp(ts).minute / 5)
+    bucket = int(datetime.fromtimestamp(timestamp).minute / 5)
     return str(bucket)
 
 
 def write_to_parquet_file(ocsf_events, filename_class_uid_key, log_utl: Logger = None):
+    """write the events to a parquet file"""
     split_path = filename_class_uid_key.rsplit(os.path.sep, 1)
     log_utl.debug('split_path=%s', split_path)
     folder_path = split_path[0]
@@ -88,15 +91,16 @@ def write_to_parquet_file(ocsf_events, filename_class_uid_key, log_utl: Logger =
 
 
 def read_fdr_part(rdr):
+    """reads the fdr file"""
     # to avoid reading the file into memory, we push each byte into a bytearray
     # and yield the completed json once we hit a newline
     tmp = bytearray()
-    for c in rdr.read():
-        if c == NEWLINE:
+    for char in rdr.read():
+        if char == NEWLINE:
             yield json.loads(tmp.decode('utf-8'))
             tmp.clear()
         else:
-            tmp.append(c)
+            tmp.append(char)
 
 
 def transform_fdr_data_to_ocsf_data(fdr, file, log_utl: Logger = None):
@@ -121,18 +125,18 @@ def transform_fdr_data_to_ocsf_data(fdr, file, log_utl: Logger = None):
         for event in read_fdr_part(chunk):
             total_events_in_file += 1
             mapping_event_simplename = event.get('event_simpleName')
-            if mapping_event_simplename in mapping_dict_by_name.keys():
+            if mapping_event_simplename in mapping_dict_by_name:
                 class_uid_field = next(
                     (field for field in mapping_dict_by_name[mapping_event_simplename].get('fields') if
                      field['name'] == 'class_uid'), False)
                 if class_uid_field:
                     class_uid = class_uid_field['value']
-                    if class_uid in CUSTOM_SOURCES.keys():
-                        ts = int(int(event.get('timestamp')) / 1000)
+                    if class_uid in CUSTOM_SOURCES:
+                        timestamp = int(int(event.get('timestamp')) / 1000)
                         folder_path = os.path.join('ext', CUSTOM_SOURCES[class_uid_field['value']],
                                                    'region=' + fdr.target_region_name,
                                                    'accountId=' + fdr.target_account_id,
-                                                   'eventHour=' + datetime.fromtimestamp(ts).strftime('%Y%m%d%H'))
+                                                   'eventHour=' + datetime.fromtimestamp(timestamp).strftime('%Y%m%d%H'))
                         is_dir_exist = os.path.exists(folder_path)
                         if not is_dir_exist:
                             try:
@@ -140,17 +144,17 @@ def transform_fdr_data_to_ocsf_data(fdr, file, log_utl: Logger = None):
                             except FileExistsError:
                                 pass
                         class_uid_path = os.path.join(folder_path, file_prefix + '_' + str(
-                            class_uid) + '_part_' + get_bucket_path(ts))
+                            class_uid) + '_part_' + get_bucket_path(timestamp))
                         ocsf_class_uid_dicts = ocsf_dicts.setdefault(class_uid_path, [])
                         ocsf_dict = {}
                         ocsf_class_uid_dicts.append(
                             transform_event_to_ocsf(event, ocsf_dict, mapping_dict_by_name[mapping_event_simplename],
                                                     supporting_mapping_dict))
 
-    for filename_class_uid_key in ocsf_dicts:
+    for filename_class_uid_key, values in ocsf_dicts.items():
         event_count = 0
         ocsf_events = []
-        for event in ocsf_dicts[filename_class_uid_key]:
+        for event in values:
             ocsf_events.append(event)
             event_count += 1
             if event_count == 100000:
@@ -165,6 +169,7 @@ def transform_fdr_data_to_ocsf_data(fdr, file, log_utl: Logger = None):
 
 
 def prepare_mapping_dict(mapping_json: dict, out_dict: dict):
+    """Dict containing the mapping definition for each name"""
     if isinstance(mapping_json.get('name'), list):
         for name in mapping_json.get('name'):
             out_dict[name] = mapping_json
@@ -173,6 +178,7 @@ def prepare_mapping_dict(mapping_json: dict, out_dict: dict):
 
 
 def transform_event_to_ocsf(event: dict, ocsf_dict: dict, mapping_dict: dict, mapping_supporting_dict: dict):
+    """Transforms event to ocsf format"""
     for mapping in mapping_dict.get('mappings'):
         map_field(event, ocsf_dict, mapping, mapping_supporting_dict)
     for field in mapping_dict.get('fields'):
@@ -183,25 +189,30 @@ def transform_event_to_ocsf(event: dict, ocsf_dict: dict, mapping_dict: dict, ma
 
 # Transform Functions start #
 def extract_filename(value):
+    """extracts filename from the value"""
     basename = re.search(r'[^\\/]+(?=[\\/]?$)', value)
     if basename:
         return basename.group(0)
+    return value
 
 
 def as_number(value):
+    """converts to int"""
     if value is None:
         return 0
-    elif '.' in value:
+    if '.' in value:
         return int(value.split('.')[0])
-    else:
-        return int(value)
+    return int(value)
 
 
 def map_ours_theirs(src: dict, dst: dict, mapping: dict, mapping_supporting_dict: dict):
+    # pylint: disable=unused-argument
+    """transform function map_ours_theirs"""
     dst[mapping.get('theirs')] = src.get(mapping.get('ours'))
 
 
 def map_ours_theirs_using_fn(src: dict, dst: dict, mapping: dict, mapping_supporting_dict: dict):
+    """transform function map_ours_theirs_using_fn"""
     supporting_enum = mapping_supporting_dict.get(mapping.get('using'))
     for value in supporting_enum.get('values'):
         if value.get('ours') == src.get(mapping.get('ours')):
@@ -209,32 +220,40 @@ def map_ours_theirs_using_fn(src: dict, dst: dict, mapping: dict, mapping_suppor
 
 
 def map_ours_theirs_transform_fn(src: dict, dst: dict, mapping: dict, mapping_supporting_dict: dict):
+    # pylint: disable=unused-argument
+    """transform function map_ours_theirs_transform_fn"""
     transform_fn = ALL_TRANSFORMS.get(mapping.get('transform'))
     dst[mapping.get('theirs')] = transform_fn(src.get(mapping.get('ours')))
 
 
 def map_items_theirs(src: dict, dst: dict, mapping: dict, mapping_supporting_dict: dict):
+    # pylint: disable=unused-argument
+    """transform function map_items_theirs"""
     values = []
-    for idx, item in enumerate(mapping.get('items')):
+    for _, item in enumerate(mapping.get('items')):
         value = {}
         for item_mapping in item.get('mappings'):
             if src.get(item_mapping.get('ours')):
                 value[item_mapping.get('theirs')] = src.get(item_mapping.get('ours'))
-        for field in item.get('fields'):
-            if src.get(item_mapping.get('ours')):
-                value[field.get('name')] = field.get('value')
-        values.append(value)
+            for field in item.get('fields'):
+                if src.get(item_mapping.get('ours')):
+                    value[field.get('name')] = field.get('value')
+            values.append(value)
 
     dst[mapping.get('theirs')] = values
 
 
 def map_ours_theirs_list(src: dict, dst: dict, mapping: dict, mapping_supporting_dict: dict):
+    # pylint: disable=unused-argument
+    """transform function map_ours_theirs_list"""
     for their in mapping.get('theirs'):
         if src.get(mapping.get('ours')):
             dst[their] = src.get(mapping.get('ours'))
 
 
 def map_ours_theirs_list_using_fn(src: dict, dst: dict, mapping: dict, mapping_supporting_dict: dict):
+    # pylint: disable=unused-argument
+    """transform function map_ours_theirs_list_using_fn"""
     supporting_enum = mapping_supporting_dict.get(mapping.get('using'))
     for their in mapping.get('theirs'):
         if src.get(mapping.get('ours')):
@@ -244,6 +263,8 @@ def map_ours_theirs_list_using_fn(src: dict, dst: dict, mapping: dict, mapping_s
 
 
 def map_ours_theirs_list_transform_fn(src: dict, dst: dict, mapping: dict, mapping_supporting_dict: dict):
+    # pylint: disable=unused-argument
+    """transform function map_ours_theirs_list_transform_fn"""
     transform_fn = ALL_TRANSFORMS.get(mapping.get('transform'))
     for their in mapping.get('theirs'):
         if src.get(mapping.get('ours')):
@@ -251,45 +272,47 @@ def map_ours_theirs_list_transform_fn(src: dict, dst: dict, mapping: dict, mappi
 
 
 # Transform Functions End#
-def apply_transform(src: dict, dst: dict, mapping: dict):
+def apply_transform(src: dict, mapping: dict):
+    """determines the transform function to be applied"""
     ours = mapping.get('ours')
     theirs = mapping.get('theirs')
     optional_using = mapping.get('using')
     optional_translate = mapping.get('transform')
     optional_items = mapping.get('items')
+    return_func = 'map_ours_theirs'
+    if ours and not isinstance(ours, list):
+        if theirs and not isinstance(theirs, list):
+            if src.get(ours) and not optional_translate and not optional_using and not optional_items:
+                return_func = 'map_ours_theirs'
+            elif src.get(ours) and not optional_translate and optional_using and not optional_items:
+                return_func = 'map_ours_theirs_using_fn'
+            elif src.get(ours) and optional_translate and not optional_using and not optional_items:
+                return_func = 'map_ours_theirs_transform_fn'
+        if theirs and isinstance(theirs, list):
+            if not optional_translate and not optional_using and not optional_items:
+                return_func = 'map_ours_theirs_list'
+            elif not optional_translate and optional_using and not optional_items:
+                return_func = 'map_ours_theirs_list_using_fn'
+            elif optional_translate and not optional_using and not optional_items:
+                return_func = 'map_ours_theirs_list_transform_fn'
+    elif not ours and optional_items and isinstance(optional_items, list):
+        if theirs and not isinstance(theirs, list) and not optional_translate and not optional_using:
+            return_func = 'map_items_theirs'
 
-    if ours and not isinstance(ours, list) and src.get(ours) and theirs and not isinstance(
-            theirs, list) and not optional_translate and not optional_using and not optional_items:
-        return 'map_ours_theirs'
-    elif ours and not isinstance(ours, list) and src.get(ours) and theirs and not isinstance(
-            theirs, list) and not optional_translate and optional_using and not optional_items:
-        return 'map_ours_theirs_using_fn'
-    elif ours and not isinstance(ours, list) and src.get(ours) and theirs and not isinstance(
-            theirs, list) and optional_translate and not optional_using and not optional_items:
-        return 'map_ours_theirs_transform_fn'
-    elif not ours and optional_items and type(optional_items) is list and theirs and not isinstance(
-            theirs, list) and not optional_translate and not optional_using:
-        return 'map_items_theirs'
-    elif ours and not isinstance(ours, list) and theirs and isinstance(
-            theirs, list) and not optional_translate and not optional_using and not optional_items:
-        return 'map_ours_theirs_list'
-    elif ours and not isinstance(ours, list) and theirs and isinstance(
-            theirs, list) and not optional_translate and optional_using and not optional_items:
-        return 'map_ours_theirs_list_using_fn'
-    elif ours and not isinstance(ours, list) and theirs and isinstance(
-            theirs, list) and optional_translate and not optional_using and not optional_items:
-        return 'map_ours_theirs_list_transform_fn'
+    return return_func
 
 
 def map_field(src: dict, dst: dict, mapping: dict, mapping_supporting_dict: dict):
-    map_fn = ALL_TRANSFORMS.get(apply_transform(src, dst, mapping))
+    """maps the FDR field to OCSF field"""
+    map_fn = ALL_TRANSFORMS.get(apply_transform(src, mapping))
     if map_fn:
         map_fn(src, dst, mapping, mapping_supporting_dict)
 
 
-def dot_notation_to_json(a):
+def dot_notation_to_json(ocsf_dict):
+    """converts the dot notations in the json to nested json"""
     output = {}
-    for key, value in a.items():
+    for key, value in ocsf_dict.items():
         path = key.split('.')
         target = reduce(lambda d, k: d.setdefault(k, {}), path[:-1], output)
         target[path[-1]] = value
@@ -297,6 +320,7 @@ def dot_notation_to_json(a):
 
 
 def add_default_field(dest: dict, field: dict):
+    """adds the default field in the dict"""
     name = field.get('name')
     value = field.get('value')
     if isinstance(value, list) and len(value) == 1 and value[0] is None:
