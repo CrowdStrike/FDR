@@ -180,7 +180,10 @@ def prepare_mapping_dict(mapping_json: dict, out_dict: dict):
 def transform_event_to_ocsf(event: dict, ocsf_dict: dict, mapping_dict: dict, mapping_supporting_dict: dict):
     """Transforms event to ocsf format"""
     for mapping in mapping_dict.get('mappings'):
-        map_field(event, ocsf_dict, mapping, mapping_supporting_dict)
+        if not event.get(mapping.get('ours')) and mapping.get('default') is not None:
+            ocsf_dict[mapping.get('theirs')] = mapping.get('default')
+        else:
+            map_field(event, ocsf_dict, mapping, mapping_supporting_dict)
     for field in mapping_dict.get('fields'):
         add_default_field(ocsf_dict, field)
 
@@ -204,6 +207,11 @@ def as_number(value):
         return int(value.split('.')[0])
     return int(value)
 
+def as_string(value):
+    """converts to string"""
+    if value is None:
+        return ''
+    return str(value)
 
 def map_ours_theirs(src: dict, dst: dict, mapping: dict, mapping_supporting_dict: dict):
     # pylint: disable=unused-argument
@@ -216,7 +224,7 @@ def map_ours_theirs_using_fn(src: dict, dst: dict, mapping: dict, mapping_suppor
     supporting_enum = mapping_supporting_dict.get(mapping.get('using'))
     for value in supporting_enum.get('values'):
         if value.get('ours') == src.get(mapping.get('ours')):
-            dst[mapping.get('theirs')] = value.get(mapping.get('theirs'))
+            dst[mapping.get('theirs')] = value.get('theirs')
 
 
 def map_ours_theirs_transform_fn(src: dict, dst: dict, mapping: dict, mapping_supporting_dict: dict):
@@ -251,7 +259,7 @@ def map_ours_theirs_list(src: dict, dst: dict, mapping: dict, mapping_supporting
             dst[their] = src.get(mapping.get('ours'))
 
 
-def map_ours_theirs_list_using_fn(src: dict, dst: dict, mapping: dict, mapping_supporting_dict: dict):
+def map_ours_theirs_list_using_fn(src: dict, dst: dict, mapping:  dict, mapping_supporting_dict: dict):
     # pylint: disable=unused-argument
     """transform function map_ours_theirs_list_using_fn"""
     supporting_enum = mapping_supporting_dict.get(mapping.get('using'))
@@ -332,6 +340,7 @@ def add_default_field(dest: dict, field: dict):
 ALL_TRANSFORMS = {
     'extract_filename': extract_filename,
     'as_number': as_number,
+    'as_string': as_string,
     'map_ours_theirs': map_ours_theirs,
     'map_ours_theirs_using_fn': map_ours_theirs_using_fn,
     'map_ours_theirs_transform_fn': map_ours_theirs_transform_fn,
