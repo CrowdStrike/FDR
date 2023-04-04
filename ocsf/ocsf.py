@@ -44,6 +44,7 @@ def upload_parquet_files_to_s3(fdr, s3_target, log_utl: Logger):
                                 s3_target.upload_fileobj(parquet_data, fdr.target_bucket_name, upload_file_path)
                             # Remove the file from the local file system
                             os.remove(upload_file_path)
+                            os.remove(lock)
 
 
 def get_bucket_path(timestamp):
@@ -136,7 +137,7 @@ def transform_fdr_data_to_ocsf_data(fdr, file, log_utl: Logger = None):
                         folder_path = os.path.join('ext', CUSTOM_SOURCES[class_uid_field['value']],
                                                    'region=' + fdr.target_region_name,
                                                    'accountId=' + fdr.target_account_id,
-                                                   'eventHour=' + datetime.fromtimestamp(timestamp).strftime('%Y%m%d%H'))
+                                                   'eventDay=' + datetime.fromtimestamp(timestamp).strftime('%Y%m%d'))
                         is_dir_exist = os.path.exists(folder_path)
                         if not is_dir_exist:
                             try:
