@@ -181,9 +181,8 @@ def transform_event_to_ocsf(event: dict, ocsf_dict: dict, mapping_dict: dict, ma
     """Transforms event to ocsf format"""
     for mapping in mapping_dict.get('mappings'):
         if not event.get(mapping.get('ours')) and mapping.get('default') is not None:
-            ocsf_dict[mapping.get('theirs')] = mapping.get('default')
-        else:
-            map_field(event, ocsf_dict, mapping, mapping_supporting_dict)
+            event[mapping.get('ours')] = mapping.get('default')
+        map_field(event, ocsf_dict, mapping, mapping_supporting_dict)
     for field in mapping_dict.get('fields'):
         add_default_field(ocsf_dict, field)
 
@@ -241,7 +240,7 @@ def map_items_theirs(src: dict, dst: dict, mapping: dict, mapping_supporting_dic
     for _, item in enumerate(mapping.get('items')):
         value = {}
         for item_mapping in item.get('mappings'):
-            if src.get(item_mapping.get('ours')):
+            if src.get(item_mapping.get('ours')) is not None:
                 value[item_mapping.get('theirs')] = src.get(item_mapping.get('ours'))
             for field in item.get('fields'):
                 if src.get(item_mapping.get('ours')):
@@ -255,7 +254,7 @@ def map_ours_theirs_list(src: dict, dst: dict, mapping: dict, mapping_supporting
     # pylint: disable=unused-argument
     """transform function map_ours_theirs_list"""
     for their in mapping.get('theirs'):
-        if src.get(mapping.get('ours')):
+        if src.get(mapping.get('ours')) is not None:
             dst[their] = src.get(mapping.get('ours'))
 
 
@@ -264,7 +263,7 @@ def map_ours_theirs_list_using_fn(src: dict, dst: dict, mapping:  dict, mapping_
     """transform function map_ours_theirs_list_using_fn"""
     supporting_enum = mapping_supporting_dict.get(mapping.get('using'))
     for their in mapping.get('theirs'):
-        if src.get(mapping.get('ours')):
+        if src.get(mapping.get('ours')) is not None:
             for value in supporting_enum.get('values'):
                 if value.get('ours') == src.get(mapping.get('ours')):
                     dst[their] = value.get(mapping.get('theirs'))
@@ -275,7 +274,7 @@ def map_ours_theirs_list_transform_fn(src: dict, dst: dict, mapping: dict, mappi
     """transform function map_ours_theirs_list_transform_fn"""
     transform_fn = ALL_TRANSFORMS.get(mapping.get('transform'))
     for their in mapping.get('theirs'):
-        if src.get(mapping.get('ours')):
+        if src.get(mapping.get('ours')) is not None:
             dst[their] = transform_fn(src.get(mapping.get('ours')))
 
 
@@ -290,11 +289,11 @@ def apply_transform(src: dict, mapping: dict):
     return_func = ''
     if ours and not isinstance(ours, list):
         if theirs and not isinstance(theirs, list):
-            if src.get(ours) and not optional_translate and not optional_using and not optional_items:
+            if src.get(ours) is not None and not optional_translate and not optional_using and not optional_items:
                 return_func = 'map_ours_theirs'
-            elif src.get(ours) and not optional_translate and optional_using and not optional_items:
+            elif src.get(ours) is not None and not optional_translate and optional_using and not optional_items:
                 return_func = 'map_ours_theirs_using_fn'
-            elif src.get(ours) and optional_translate and not optional_using and not optional_items:
+            elif src.get(ours) is not None and optional_translate and not optional_using and not optional_items:
                 return_func = 'map_ours_theirs_transform_fn'
         if theirs and isinstance(theirs, list):
             if not optional_translate and not optional_using and not optional_items:
