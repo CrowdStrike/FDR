@@ -22,10 +22,9 @@ CUSTOM_SOURCES = {
     4003: 'CrowdStrike_DNS_ACTIVITY'
 }
 
-MAX_FILE_SIZE_BYTES = 2.24e+8
+BYTES_IN_MB = 1000000
 
 WRITE_UPLOAD_THREAD_LOCK = threading.Lock()
-
 
 def upload_parquet_files_to_s3(fdr, s3_target, log_utl: Logger):
     """Uploads parquet files to s3"""
@@ -34,9 +33,15 @@ def upload_parquet_files_to_s3(fdr, s3_target, log_utl: Logger):
             for root, _, filenames in os.walk('ext'):
                 for filename in filenames:
                     upload_file_path = os.path.join(root, filename)
-                    if filename.endswith('parquet') and \
-                            os.path.exists(upload_file_path) and \
-                            os.path.getsize(upload_file_path) >= MAX_FILE_SIZE_BYTES:
+                    timestamp_str = filename.split('_')[-1].split('.')[0]
+
+                    if not filename.endswith('parquet'):
+                        continue
+
+                    if not os.path.exists(upload_file_path):    
+                        continue
+                    
+                    if os.path.getsize(upload_file_path) >= (BYTES_IN_MB * fdr.ocsf_max_file_size) or is_older_than_minutes(timestamp_str, fdr.ocsf_ingest_latency):
                         lock = FileLock(upload_file_path + ".lock")
                         with lock:
                             with open(upload_file_path, 'rb') as parquet_data:
@@ -44,16 +49,27 @@ def upload_parquet_files_to_s3(fdr, s3_target, log_utl: Logger):
                                 s3_target.upload_fileobj(parquet_data, fdr.target_bucket_name, upload_file_path)
                             # Remove the file from the local file system
                             os.remove(upload_file_path)
-                            os.remove(lock)
 
 
-def get_bucket_path(timestamp):
-    """5-minute window bucket based on class_uid_path"""
-    bucket = int(datetime.fromtimestamp(timestamp).minute / 5)
-    return str(bucket)
+def is_older_than_minutes(timestamp, minutes):
+    """Checks if the timestamp is older than the number of minutes passed
+    
+    Arguments:
+        timestamp {string} -- timestamp in string format
+        minutes {int} -- number of minutes
+    
+    Returns:
+        bool -- True if the timestamp is older than the number of minutes passed
+    """
+    return (datetime.utcnow().timestamp() - float(timestamp)) > minutes * 60
+
+def bucket_path_timestamp(timestamp):
+    """One hour timestamp based on class_uid_path"""
+    bucket = datetime.fromtimestamp(timestamp).strftime('%Y%m%d%H')
+    return bucket
 
 
-def write_to_parquet_file(ocsf_events, filename_class_uid_key, log_utl: Logger = None):
+def write_to_parquet_file(fdr, ocsf_events, filename_class_uid_key, log_utl: Logger = None):
     """write the events to a parquet file"""
     split_path = filename_class_uid_key.rsplit(os.path.sep, 1)
     log_utl.debug('split_path=%s', split_path)
@@ -70,7 +86,7 @@ def write_to_parquet_file(ocsf_events, filename_class_uid_key, log_utl: Logger =
             for file_path in file_list:
                 parquet_file_name = os.path.join(folder_path, file_path)
                 if file_path.endswith('parquet') and file_path.startswith(file_name + '_chunk_') and \
-                        os.path.getsize(parquet_file_name) <= MAX_FILE_SIZE_BYTES:
+                        os.path.getsize(parquet_file_name) <= (BYTES_IN_MB * fdr.ocsf_max_file_size):
                     lock = FileLock(parquet_file_name + ".lock")
                     with lock:
                         events_wrote_to_file = True
@@ -145,7 +161,7 @@ def transform_fdr_data_to_ocsf_data(fdr, file, log_utl: Logger = None):
                             except FileExistsError:
                                 pass
                         class_uid_path = os.path.join(folder_path, file_prefix + '_' + str(
-                            class_uid) + '_part_' + get_bucket_path(timestamp))
+                            class_uid) + '_part_' + bucket_path_timestamp(timestamp))
                         ocsf_class_uid_dicts = ocsf_dicts.setdefault(class_uid_path, [])
                         ocsf_dict = {}
                         ocsf_class_uid_dicts.append(
@@ -159,12 +175,12 @@ def transform_fdr_data_to_ocsf_data(fdr, file, log_utl: Logger = None):
             ocsf_events.append(event)
             event_count += 1
             if event_count == 100000:
-                write_to_parquet_file(ocsf_events, filename_class_uid_key, log_utl)
+                write_to_parquet_file(fdr, ocsf_events, filename_class_uid_key, log_utl)
                 ocsf_events = []
                 event_count = 0
 
         if len(ocsf_events) > 0:
-            write_to_parquet_file(ocsf_events, filename_class_uid_key, log_utl)
+            write_to_parquet_file(fdr, ocsf_events, filename_class_uid_key, log_utl)
 
     return total_events_in_file
 

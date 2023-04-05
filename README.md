@@ -39,6 +39,11 @@ upload to our bucket is skipped and the local files are retained after download.
 + `TARGET_REGION` - The name of the AWS region our target bucket resides within
 + `REMOVE_LOCAL_FILE` - Boolean representing whether or not to remove local files after they are uploaded
 + `IN_MEMORY_TRANSFER_ONLY` - Transfer the file from the source bucket to the destination bucket without storing the file on the local file system.
++ `DO_OCSF_CONVERSION` - Boolean representing whether or not to convert the events to the OCSF format
++ `TARGET_ACCOUNT_ID` - The AWS account ID of the target bucket
++ `OCSF_INGEST_LATENCY` - The maximum amount of time (in minutes) to buffer records before publishing. Min: 5 Max: 60 Default: 5
++ `OCSF_MAX_FILE_SIZE` - Maximum size of a file in MB before it is uploaded. Min: 1 Max: 200 Default: 200
+ > Note: Security Lake performance is sensitive to the number of files that must be read for a query. Use `OCSF_MAX_FILE_SIZE` and `OCSF_INGEST_LATENCY` to tune performance for your use case.
 ### Running the solution
 After updating the configuration file to reflect your environment specifics, you can run this solution using:
 ```bash

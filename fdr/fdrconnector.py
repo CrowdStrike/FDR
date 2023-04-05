@@ -45,6 +45,7 @@ class FDRConnector:  # pylint: disable=R0902
         self.target_region_name = None  # Defaults to no upload
         self.target_bucket_name = None  # Defaults to no upload
         self.remove_local_file = False  # Defaults to keeping files locally
+
         try:
             # Fail on these in order.  If REMOVE_LOCAL_FILE, or IN_MEMORY_TRANSFER_ONLY
             # fail, processing will still continue.
@@ -80,6 +81,15 @@ class FDRConnector:  # pylint: disable=R0902
                     if config["Destination Data"]["TARGET_ACCOUNT_ID"]:
                         # AWS Account ID
                         self.target_account_id = config["Destination Data"]["TARGET_ACCOUNT_ID"]
+
+                    if self.do_ocsf:
+                        ocsf_max_file_size = int(
+                            config["Destination Data"].get("OCSF_MAX_FILE_SIZE", 200))
+                        ocsf_ingest_latency = int(config["Destination Data"].get("OCSF_INGEST_LATENCY", 5))
+
+                        self.ocsf_max_file_size = max(
+                            min(ocsf_max_file_size, 200), 1)
+                        self.ocsf_ingest_latency = max(min(ocsf_ingest_latency, 60), 5)
 
         except KeyError:
             pass
