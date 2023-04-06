@@ -26,6 +26,7 @@ BYTES_IN_MB = 1000000
 
 WRITE_UPLOAD_THREAD_LOCK = threading.Lock()
 
+
 def upload_parquet_files_to_s3(fdr, s3_target, log_utl: Logger):
     """Uploads parquet files to s3"""
     if fdr.target_bucket_name:
@@ -38,10 +39,11 @@ def upload_parquet_files_to_s3(fdr, s3_target, log_utl: Logger):
                     if not filename.endswith('parquet'):
                         continue
 
-                    if not os.path.exists(upload_file_path):    
+                    if not os.path.exists(upload_file_path):
                         continue
-                    
-                    if os.path.getsize(upload_file_path) >= (BYTES_IN_MB * fdr.ocsf_max_file_size) or is_older_than_minutes(timestamp_str, fdr.ocsf_ingest_latency):
+
+                    if os.path.getsize(upload_file_path) >= (BYTES_IN_MB * fdr.ocsf_max_file_size) or \
+                            is_older_than_minutes(timestamp_str, fdr.ocsf_ingest_latency):
                         lock = FileLock(upload_file_path + ".lock")
                         with lock:
                             with open(upload_file_path, 'rb') as parquet_data:
@@ -53,15 +55,16 @@ def upload_parquet_files_to_s3(fdr, s3_target, log_utl: Logger):
 
 def is_older_than_minutes(timestamp, minutes):
     """Checks if the timestamp is older than the number of minutes passed
-    
+
     Arguments:
         timestamp {string} -- timestamp in string format
         minutes {int} -- number of minutes
-    
+
     Returns:
         bool -- True if the timestamp is older than the number of minutes passed
     """
     return (datetime.utcnow().timestamp() - float(timestamp)) > minutes * 60
+
 
 def bucket_path_timestamp(timestamp):
     """One hour timestamp based on class_uid_path"""
@@ -223,11 +226,13 @@ def as_number(value):
         return int(value.split('.')[0])
     return int(value)
 
+
 def as_string(value):
     """converts to string"""
     if value is None:
         return ''
     return str(value)
+
 
 def map_ours_theirs(src: dict, dst: dict, mapping: dict, mapping_supporting_dict: dict):
     # pylint: disable=unused-argument
