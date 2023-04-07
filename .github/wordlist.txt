@@ -18,3 +18,11 @@ codebase
 socio
 sexualized
 CodeQL
+Snyk
+fastparquet
+filelock
+json
+numpy
+pyyaml
+txt
+OCSF
