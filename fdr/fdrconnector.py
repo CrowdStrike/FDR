@@ -84,11 +84,11 @@ class FDRConnector:  # pylint: disable=R0902
 
                     if self.do_ocsf:
                         ocsf_max_file_size = int(
-                            config["Destination Data"].get("OCSF_MAX_FILE_SIZE", 200))
+                            config["Destination Data"].get("OCSF_MAX_FILE_SIZE", 256))
                         ocsf_ingest_latency = int(config["Destination Data"].get("OCSF_INGEST_LATENCY", 5))
 
                         self.ocsf_max_file_size = max(
-                            min(ocsf_max_file_size, 200), 1)
+                            min(ocsf_max_file_size, 256), 200)
                         self.ocsf_ingest_latency = max(min(ocsf_ingest_latency, 60), 5)
 
         except KeyError:

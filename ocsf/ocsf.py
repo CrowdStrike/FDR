@@ -66,12 +66,6 @@ def is_older_than_minutes(timestamp, minutes):
     return (datetime.utcnow().timestamp() - float(timestamp)) > minutes * 60
 
 
-def bucket_path_timestamp(timestamp):
-    """One hour timestamp based on class_uid_path"""
-    bucket = datetime.fromtimestamp(timestamp).strftime('%Y%m%d%H')
-    return bucket
-
-
 def write_to_parquet_file(fdr, ocsf_events, filename_class_uid_key, log_utl: Logger = None):
     """write the events to a parquet file"""
     split_path = filename_class_uid_key.rsplit(os.path.sep, 1)
@@ -164,7 +158,7 @@ def transform_fdr_data_to_ocsf_data(fdr, file, log_utl: Logger = None):
                             except FileExistsError:
                                 pass
                         class_uid_path = os.path.join(folder_path, file_prefix + '_' + str(
-                            class_uid) + '_part_' + bucket_path_timestamp(timestamp))
+                            class_uid) + '_part_')
                         ocsf_class_uid_dicts = ocsf_dicts.setdefault(class_uid_path, [])
                         ocsf_dict = {}
                         ocsf_class_uid_dicts.append(
