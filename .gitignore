@@ -130,6 +130,7 @@ dmypy.json
 
 ext/
 downloaded/
+ocsf/mappings
 
 .idea
 .DS_Store
