@@ -15,7 +15,7 @@ import yaml
 NEWLINE = ord('\n')
 
 CUSTOM_SOURCES = {
-    1001: 'CrowdStrike_FILE_ACTIVITY',
+    1000: 'CrowdStrike_FILE_ACTIVITY',
     1005: 'CrowdStrike_MODULE_ACTIVITY',
     1007: 'CrowdStrike_PROCESS_ACTIVITY',
     4001: 'CrowdStrike_NETWORK_ACTIVITY',
