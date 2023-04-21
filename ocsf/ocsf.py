@@ -15,7 +15,7 @@ import yaml
 NEWLINE = ord('\n')
 
 CUSTOM_SOURCES = {
-    1001: 'CrowdStrike_FILE_ACTIVITY',
+    1000: 'CrowdStrike_FILE_ACTIVITY',
     1005: 'CrowdStrike_MODULE_ACTIVITY',
     1007: 'CrowdStrike_PROCESS_ACTIVITY',
     4001: 'CrowdStrike_NETWORK_ACTIVITY',
@@ -150,7 +150,7 @@ def transform_fdr_data_to_ocsf_data(fdr, file, log_utl: Logger = None):
                         folder_path = os.path.join('ext', CUSTOM_SOURCES[class_uid_field['value']],
                                                    'region=' + fdr.target_region_name,
                                                    'accountId=' + fdr.target_account_id,
-                                                   'eventDay=' + datetime.fromtimestamp(timestamp).strftime('%Y%m%d'))
+                                                   'eventHour=' + datetime.fromtimestamp(timestamp).strftime('%Y%m%d%H'))
                         is_dir_exist = os.path.exists(folder_path)
                         if not is_dir_exist:
                             try:
