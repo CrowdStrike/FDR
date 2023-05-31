@@ -86,7 +86,16 @@ class FDRConnector:  # pylint: disable=R0902
                         ocsf_max_file_size = int(
                             config["Destination Data"].get("OCSF_MAX_FILE_SIZE", 256))
                         ocsf_ingest_latency = int(config["Destination Data"].get("OCSF_INGEST_LATENCY", 5))
+                        ocsf_role_name = config["Destination Data"].get(
+                            "OCSF_ROLE_NAME", None)
+                        ocsf_role_external_id = config["Destination Data"].get("OCSF_ROLE_EXTERNAL_ID", "CrowdStrike OCSF Conversion")
 
+                        if ocsf_role_name is None:
+                            raise RuntimeError(
+                                "OCSF_ROLE_NAME must be set if DO_OCSF_CONVERSION is true")
+                        
+                        self.ocsf_role_name = ocsf_role_name
+                        self.ocsf_role_external_id = ocsf_role_external_id
                         self.ocsf_max_file_size = max(
                             min(ocsf_max_file_size, 256), 200)
                         self.ocsf_ingest_latency = max(min(ocsf_ingest_latency, 60), 5)
