@@ -158,7 +158,7 @@ def transform_fdr_data_to_ocsf_data(fdr, file, log_utl: Logger = None):
                             except FileExistsError:
                                 pass
                         class_uid_path = os.path.join(folder_path, file_prefix + '_' + str(
-                            class_uid) + '_part_')
+                            class_uid))
                         ocsf_class_uid_dicts = ocsf_dicts.setdefault(class_uid_path, [])
                         ocsf_dict = {}
                         ocsf_class_uid_dicts.append(
