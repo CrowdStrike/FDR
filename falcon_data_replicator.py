@@ -390,6 +390,7 @@ def get_crowdstrike_aws_objects(connector: FDRConnector):
 
     return sqs_queue, s3bkt
 
+
 # pylint: disable=R0913
 def get_aws_client(resource_type, account_id, aws_region, role_name, session_name, external_id, role_path='/'):
     """
@@ -442,12 +443,12 @@ def get_s3_target(connector: FDRConnector, log_util: logging.Logger):
         # client configuration to connect (Not the CS provided ones)
         if connector.do_ocsf:
             returned = get_aws_client('s3',
-                        connector.target_account_id,
-                        connector.target_region_name,
-                        connector.ocsf_role_name,
-                        "CrowdStrikeCustomSource",
-                        connector.ocsf_role_external_id
-                    )
+                                      connector.target_account_id,
+                                      connector.target_region_name,
+                                      connector.ocsf_role_name,
+                                      "CrowdStrikeCustomSource",
+                                      connector.ocsf_role_external_id
+                                      )
         else:
             returned = boto3.client(
                 's3', region_name=connector.target_region_name)
