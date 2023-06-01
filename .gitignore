@@ -134,3 +134,7 @@ ocsf/mappings
 
 .idea
 .DS_Store
+
+# files for local testing
+utils/
+falcon_data_replicator_local.ini

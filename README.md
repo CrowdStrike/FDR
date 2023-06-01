@@ -41,6 +41,8 @@ upload to our bucket is skipped and the local files are retained after download.
 + `IN_MEMORY_TRANSFER_ONLY` - Transfer the file from the source bucket to the destination bucket without storing the file on the local file system.
 + `DO_OCSF_CONVERSION` - Boolean representing whether or not to convert the events to the OCSF format
 + `TARGET_ACCOUNT_ID` - The AWS account ID of the target bucket
++ `OCSF_ROLE_NAME` - The name of the role to use when writing to the target bucket
++ `OCSF_ROLE_EXTERNAL_ID` - The external ID to use when assuming the role provided by OCSF_ROLE_NAME. Default: `CrowdStrikeCustomSource`
 + `OCSF_INGEST_LATENCY` - The maximum amount of time (in minutes) to buffer records before publishing. Min: 5 Max: 60 Default: 5
 + `OCSF_MAX_FILE_SIZE` - Maximum size of a file in MB before it is uploaded. Min: 1 Max: 200 Default: 200
  > Note: Security Lake performance is sensitive to the number of files that must be read for a query. Use `OCSF_MAX_FILE_SIZE` and `OCSF_INGEST_LATENCY` to tune performance for your use case.

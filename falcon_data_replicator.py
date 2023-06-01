@@ -78,7 +78,8 @@ def do_keyed_delete(file_target: str, log: logging.Logger):
         try:
             os.rmdir(pure.parent.parent.parent)
         except OSError:
-            log.debug(f"Skipping deletion of {pure.parent.parent.parent} as not empty.")
+            log.debug(
+                f"Skipping deletion of {pure.parent.parent.parent} as not empty.")
         else:
             log.debug("Removed %s", pure.parent.parent.parent)
 
@@ -94,7 +95,8 @@ def handle_file(path, key, target_bkt, file_object=None, log_util: logging.Logge
             if FDR.do_ocsf:
                 # Send the gzip'd file to be transformed and write it as parquet file
                 start_transform_time = time.time()
-                total_events_in_file = transform_fdr_data_to_ocsf_data(FDR, path, log_util)
+                total_events_in_file = transform_fdr_data_to_ocsf_data(
+                    FDR, path, log_util)
                 transform_time = time.time() - start_transform_time
                 # upload the file that meets the criteria
                 start_upload_time = time.time()
@@ -105,7 +107,8 @@ def handle_file(path, key, target_bkt, file_object=None, log_util: logging.Logge
                 # Open our local file (binary)
                 with open(path, 'rb') as data:
                     # Perform the upload to the same key in our target bucket
-                    target_bkt.upload_fileobj(data, FDR.target_bucket_name, key)
+                    target_bkt.upload_fileobj(
+                        data, FDR.target_bucket_name, key)
                 log_util.info('Uploaded file to path %s', key)
                 upload_time = time.time() - start_upload_time
             # Only perform this step if configured to do so
@@ -117,7 +120,8 @@ def handle_file(path, key, target_bkt, file_object=None, log_util: logging.Logge
             if FDR.do_ocsf:
                 # OCSF conversion using IN Memory data from s3 source
                 start_transform_time = time.time()
-                total_events_in_file = transform_fdr_data_to_ocsf_data(FDR, file_object, log_util)
+                total_events_in_file = transform_fdr_data_to_ocsf_data(
+                    FDR, file_object, log_util)
                 transform_time = time.time() - start_transform_time
                 # upload the file that meets the criteria
                 start_upload_time = time.time()
@@ -125,7 +129,8 @@ def handle_file(path, key, target_bkt, file_object=None, log_util: logging.Logge
                 upload_time = time.time() - start_upload_time
             else:
                 start_upload_time = time.time()
-                target_bkt.upload_fileobj(file_object, FDR.target_bucket_name, key)
+                target_bkt.upload_fileobj(
+                    file_object, FDR.target_bucket_name, key)
                 log_util.info('Uploaded file to path %s', key)
                 upload_time = time.time() - start_upload_time
             if os.path.exists(f"{FDR.output_path}/{key}"):
@@ -252,7 +257,8 @@ def consume_data_replicator(s3_bkt, s3_cs_bkt, log: logging.Logger):
         #
         with ThreadPoolExecutor(FDR.max_threads, thread_name_prefix="thread") as executor:
             futures = {
-                executor.submit(process_queue_message, msg, s3_bkt, s3_cs_bkt, log)
+                executor.submit(process_queue_message, msg,
+                                s3_bkt, s3_cs_bkt, log)
                 for msg in queue.receive_messages(VisibilityTimeout=FDR.visibility_timeout, MaxNumberOfMessages=10)
             }
             max_total_download_time_sec = 0.0
@@ -272,11 +278,13 @@ def consume_data_replicator(s3_bkt, s3_cs_bkt, log: logging.Logger):
                     max_total_transform_time_sec = res[3]['total_transform_time_sec']
                 if max_total_upload_time_sec < res[3]['total_upload_time_sec']:
                     max_total_upload_time_sec = res[3]['total_upload_time_sec']
-                m_tot_time_sec = max_total_download_time_sec + max_total_transform_time_sec + max_total_upload_time_sec
+                m_tot_time_sec = max_total_download_time_sec + \
+                    max_total_transform_time_sec + max_total_upload_time_sec
                 max_total_time_sec = max(max_total_time_sec, m_tot_time_sec)
 
         if not received:
-            log.info("No messages received, sleeping for %i seconds", FDR.queue_delay)
+            log.info("No messages received, sleeping for %i seconds",
+                     FDR.queue_delay)
             for _ in range(0, FDR.queue_delay):
                 time.sleep(1)
                 if FDR.exiting:
@@ -329,13 +337,16 @@ def setup_logging(connector: FDRConnector):
     if FDR.log_level.upper() == "DEBUG":
         log_level = logging.DEBUG
     # Setup our root logger
-    logging.basicConfig(level=log_level, format="%(asctime)-8s %(levelname)-8s %(name)s/%(threadName)-10s %(message)s")
+    logging.basicConfig(
+        level=log_level, format="%(asctime)-8s %(levelname)-8s %(name)s/%(threadName)-10s %(message)s")
     # Create our FDR logger
     log_util = logging.getLogger("FDR")
     # Rotate log file handler
-    rfh = RotatingFileHandler(connector.log_file, maxBytes=20971520, backupCount=5)
+    rfh = RotatingFileHandler(
+        connector.log_file, maxBytes=20971520, backupCount=5)
     # Log file output format
-    f_format = logging.Formatter('%(asctime)s %(levelname)-8s %(name)s/%(threadName)-10s %(message)s')
+    f_format = logging.Formatter(
+        '%(asctime)s %(levelname)-8s %(name)s/%(threadName)-10s %(message)s')
     # Set the log file output level to INFO
     rfh.setLevel(logging.INFO)
     # Add our log file formatter to the log file handler
@@ -380,14 +391,67 @@ def get_crowdstrike_aws_objects(connector: FDRConnector):
     return sqs_queue, s3bkt
 
 
+# pylint: disable=R0913
+def get_aws_client(resource_type, account_id, aws_region, role_name, session_name, external_id, role_path='/'):
+    """
+    This function Assumes role and returns a client
+
+    Args:
+        resource_type (string): Resource type to initialize (Ex: ec2, s3)
+        account_id (string): Target account Id to assume role
+        aws_region (string): AWS region to initialize service
+        role_name (string): Role name to assume
+        session_name (string): Assume role session name
+        external_id (string): External Id to assume role
+        role_path (string): Role Path, default = '/'
+
+    Returns:
+        serviceClient (botocore client): botocore resource client
+
+    """
+    sts_client = boto3.client('sts')
+    try:
+        # Make Role ARN
+        if role_path == '/':
+            role_arn = f'arn:aws:iam::{account_id}:role/{role_name}'
+        else:
+            role_arn = f'arn:aws:iam::{account_id}:role/{role_path.lstrip("/").rstrip("/")}/{role_name}'
+
+        # Assume role
+        role = sts_client.assume_role(
+            RoleArn=role_arn, RoleSessionName=session_name, ExternalId=external_id)
+        access_key = role['Credentials']['AccessKeyId']
+        secret_key = role['Credentials']['SecretAccessKey']
+        session_token = role['Credentials']['SessionToken']
+        service_client = boto3.client(resource_type, region_name=aws_region,
+                                      aws_access_key_id=access_key,
+                                      aws_secret_access_key=secret_key,
+                                      aws_session_token=session_token)
+        return service_client
+    except Exception as error:
+        print(f'Failed to assume the role for Account: {account_id}: {error}')
+        raise
+
+
 def get_s3_target(connector: FDRConnector, log_util: logging.Logger):
     """Retrieve details for any S3 bucket uploads."""
     returned = None
     if FDR.target_bucket_name and connector.target_region_name:
         log_util.info("Upload to AWS S3 enabled")
+
         # Connect to our target S3 bucket, uses the existing
         # client configuration to connect (Not the CS provided ones)
-        returned = boto3.client('s3', region_name=connector.target_region_name)
+        if connector.do_ocsf:
+            returned = get_aws_client('s3',
+                                      connector.target_account_id,
+                                      connector.target_region_name,
+                                      connector.ocsf_role_name,
+                                      "CrowdStrikeCustomSource",
+                                      connector.ocsf_role_external_id
+                                      )
+        else:
+            returned = boto3.client(
+                's3', region_name=connector.target_region_name)
 
     return returned
 
@@ -395,7 +459,8 @@ def get_s3_target(connector: FDRConnector, log_util: logging.Logger):
 def consume_arguments():
     """Consume any provided command line arguments."""
     # Configure our accepted command line parameters
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("-f", "--config_file", dest="config_file", help="Path to the configuration file",
                         required=False)
     # Parse any parameters passed at runtime
