@@ -390,7 +390,7 @@ def get_crowdstrike_aws_objects(connector: FDRConnector):
 
     return sqs_queue, s3bkt
 
-
+# pylint: disable=R0913
 def get_aws_client(resource_type, account_id, aws_region, role_name, session_name, external_id, role_path='/'):
     """
     This function Assumes role and returns a client
