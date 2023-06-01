@@ -8,7 +8,7 @@ import configparser
 class FDRConnector:  # pylint: disable=R0902
     """The FDRConnector class contains the details of this connection and tracks the status of our process."""
 
-    def __init__(self, config: configparser.ConfigParser):  # pylint: disable=R0915
+    def __init__(self, config: configparser.ConfigParser):  # pylint: disable=R0912,R0915
         """Initialize our status class"""
         self.set_exit(False)
         # We cannot read our source parameters, exit the routine
