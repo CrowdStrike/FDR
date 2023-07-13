@@ -102,6 +102,13 @@ class FDRConnector:  # pylint: disable=R0902
                             min(ocsf_max_file_size, 256), 200)
                         self.ocsf_ingest_latency = max(min(ocsf_ingest_latency, 60), 5)
 
+                if config["Destination Data"]["STORE_IN_YMD"]:
+                    # The AWS region name our target S3 bucket resides in
+                    aws_format = config["Destination Data"]["STORE_IN_YMD"]
+                    self.s3dateformat = False
+                    if aws_format.lower() in "true,yes".split(","):
+                        self.s3dateformat = True
+
         except KeyError:
             pass
 

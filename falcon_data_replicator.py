@@ -37,6 +37,8 @@ import signal as sig
 import configparser
 import argparse
 import logging
+import shortuuid
+import pendulum
 from logging.handlers import RotatingFileHandler
 from functools import partial
 from concurrent.futures import ThreadPoolExecutor
@@ -84,11 +86,53 @@ def do_keyed_delete(file_target: str, log: logging.Logger):
             log.debug("Removed %s", pure.parent.parent.parent)
 
 
+def splitall(path):
+    allparts = []
+    while 1:
+        parts = os.path.split(path)
+        if parts[0] == path:  # sentinel for absolute paths
+            allparts.insert(0, parts[0])
+            break
+        elif parts[1] == path:  # sentinel for relative paths
+            allparts.insert(0, parts[1])
+            break
+        else:
+            path = parts[0]
+            allparts.insert(0, parts[1])
+    return allparts
+
+
+def get_query_path(old_key):
+    now = pendulum.now()
+    yr = now.format('Y')
+    mo = now.format('MM')
+    date = now.format('DD')
+    hr = now.format('HH')
+    file_id = shortuuid.uuid()
+    key_path = splitall(old_key)
+    cs_id = key_path[0]
+
+    if key_path[1] == 'data':
+        pathandname = f"{cs_id}/data/{yr}/{mo}/{date}/{hr}/{file_id}.jsonl.gz"
+    elif key_path[1] == 'fdrv2':
+        pathandname = f"{cs_id}/fdrv2/{key_path[2]}/{yr}/{mo}/{date}/{hr}/{file_id}.jsonl.gz"
+    else:
+        pathandname = f"{cs_id}/cs_other/{yr}/{mo}/{date}/{hr}/{file_id}.jsonl.gz"
+
+    return (pathandname)
+
+
 def handle_file(path, key, target_bkt, file_object=None, log_util: logging.Logger = None):
     """Process the file. If configured, upload this file to our target bucket and remove it."""
-    total_events_in_file = 0
-    transform_time = 0
-    upload_time = 0
+
+    if FDR.s3dateformat == True:
+        new_key = get_query_path(key)
+        total_events_in_file = 0
+        transform_time = 0
+        upload_time = 0
+    else:
+        new_key == key
+
     # If we've defined a target bucket
     if FDR.target_bucket_name:
         if not file_object:
@@ -108,8 +152,8 @@ def handle_file(path, key, target_bkt, file_object=None, log_util: logging.Logge
                 with open(path, 'rb') as data:
                     # Perform the upload to the same key in our target bucket
                     target_bkt.upload_fileobj(
-                        data, FDR.target_bucket_name, key)
-                log_util.info('Uploaded file to path %s', key)
+                        data, FDR.target_bucket_name, new_key)
+                log_util.info('Uploaded file to path %s', new_key)
                 upload_time = time.time() - start_upload_time
             # Only perform this step if configured to do so
             if FDR.remove_local_file:
@@ -130,12 +174,12 @@ def handle_file(path, key, target_bkt, file_object=None, log_util: logging.Logge
             else:
                 start_upload_time = time.time()
                 target_bkt.upload_fileobj(
-                    file_object, FDR.target_bucket_name, key)
-                log_util.info('Uploaded file to path %s', key)
+                    file_object, FDR.target_bucket_name, new_key)
+                log_util.info('Uploaded file to path %s', new_key)
                 upload_time = time.time() - start_upload_time
-            if os.path.exists(f"{FDR.output_path}/{key}"):
+            if os.path.exists(f"{FDR.output_path}/{new_key}"):
                 # Something about our zip handling is leaving artifacts on the drive
-                do_keyed_delete(f"{FDR.output_path}/{key}", log_util)
+                do_keyed_delete(f"{FDR.output_path}/{new_key}", log_util)
     # We're done
     return {'done': True, 'total_events_per_input_file': total_events_in_file,
             'transform_time_per_input_file': transform_time,

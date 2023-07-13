@@ -138,3 +138,5 @@ ocsf/mappings
 # files for local testing
 utils/
 falcon_data_replicator_local.ini
+requirements.txt
+settings.json
