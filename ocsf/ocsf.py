@@ -111,7 +111,11 @@ def read_fdr_part(rdr):
     tmp = bytearray()
     for char in rdr.read():
         if char == NEWLINE:
-            yield json.loads(tmp.decode('utf-8'))
+            if tmp:
+                try:
+                    yield json.loads(tmp.decode('utf-8'))
+                except json.JSONDecodeError as e:
+                    print(f"Error decoding JSON: {e}")
             tmp.clear()
         else:
             tmp.append(char)
