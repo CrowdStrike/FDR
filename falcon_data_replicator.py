@@ -163,6 +163,9 @@ def download_message_files(msg, s3ta, s3or, log: logging.Logger):
         if not FDR.in_memory_transfer_only:
             # Create a local path name for our destination file based off of the S3 path
             local_path = os.path.join(FDR.output_path, s3_path)
+            if not os.path.exists(os.path.dirname(local_path)):
+                # Handle fdr platform and time partitioned folders
+                os.makedirs(os.path.dirname(local_path))
             start_download_time = time.time()
             # Open our local file for binary write
             with open(local_path, 'wb') as data:
