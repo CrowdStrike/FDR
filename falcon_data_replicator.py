@@ -53,6 +53,9 @@ except ImportError as err:
                      "Data Replicator.\nPlease execute 'pip3 install boto3'"
                      ) from err
 
+# Global FDR
+FDR = None
+
 
 # This method is used as an exit handler. When a quit, cancel or interrupt is received,
 # this method forces FDR to finish processing the file it is working on before exiting.
