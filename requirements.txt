@@ -15,3 +15,4 @@ json2parquet>=2.0.0
 pyyaml>=6.0
     # via -r requirements.txt
 numpy>=1.22.2 # not directly required, pinned by Snyk to avoid a vulnerability
+aws-assume-role-lib>=2.10.0
