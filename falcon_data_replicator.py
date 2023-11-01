@@ -60,13 +60,6 @@ except ImportError as err:
     raise SystemExit("The aws-assume-role-lib library is required to run Falcon "
                      "Data Replicator.\nPlease execute 'pip3 install aws-assume-role-lib'"
                      ) from err
-try:
-    from aws_assume_role_lib import assume_role
-except ImportError as err:
-    print(err)
-    raise SystemExit("The aws-assume-role-lib library is required to run Falcon "
-                     "Data Replicator.\nPlease execute 'pip3 install aws-assume-role-lib'"
-                     ) from err
 # Global FDR
 FDR = None
 
@@ -429,7 +422,6 @@ def get_aws_client(resource_type, account_id, aws_region, role_name, session_nam
         serviceClient (botocore client): botocore resource client
 
     """
-    sts_client = boto3.client('sts')
     try:
         # Make Role ARN
         if role_path == '/':
