@@ -53,6 +53,20 @@ except ImportError as err:
                      "Data Replicator.\nPlease execute 'pip3 install boto3'"
                      ) from err
 
+try:
+    from aws_assume_role_lib import assume_role
+except ImportError as err:
+    print(err)
+    raise SystemExit("The aws-assume-role-lib library is required to run Falcon "
+                     "Data Replicator.\nPlease execute 'pip3 install aws-assume-role-lib'"
+                     ) from err
+try:
+    from aws_assume_role_lib import assume_role
+except ImportError as err:
+    print(err)
+    raise SystemExit("The aws-assume-role-lib library is required to run Falcon "
+                     "Data Replicator.\nPlease execute 'pip3 install aws-assume-role-lib'"
+                     ) from err
 # Global FDR
 FDR = None
 
@@ -424,16 +438,10 @@ def get_aws_client(resource_type, account_id, aws_region, role_name, session_nam
             role_arn = f'arn:aws:iam::{account_id}:role/{role_path.lstrip("/").rstrip("/")}/{role_name}'
 
         # Assume role
-        role = sts_client.assume_role(
-            RoleArn=role_arn, RoleSessionName=session_name, ExternalId=external_id)
-        access_key = role['Credentials']['AccessKeyId']
-        secret_key = role['Credentials']['SecretAccessKey']
-        session_token = role['Credentials']['SessionToken']
-        service_client = boto3.client(resource_type, region_name=aws_region,
-                                      aws_access_key_id=access_key,
-                                      aws_secret_access_key=secret_key,
-                                      aws_session_token=session_token)
-        return service_client
+        session = boto3.Session(region_name=aws_region)
+        assumed_role_session = assume_role(session, role_arn, RoleSessionName=session_name, ExternalId=external_id)
+        return assumed_role_session.client(resource_type, region_name=aws_region)
+
     except Exception as error:
         print(f'Failed to assume the role for Account: {account_id}: {error}')
         raise
