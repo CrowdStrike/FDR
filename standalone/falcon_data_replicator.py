@@ -51,7 +51,7 @@ class FDRConnector:  # pylint: disable=R0902
         # AWS SQS queue URL - Provided by CrowdStrike
         self.queue_url = config["Source Data"]["QUEUE_URL"]
         # Local file output location
-        self.output_path = config["Source Data"]["OUTPUT_PATH"]
+        self.output_path = os.path.realpath(config["Source Data"]["OUTPUT_PATH"])
         # Timeout before messages are returned to the queue
         self.visibility_timeout = int(config["Source Data"]["VISIBILITY_TIMEOUT"])
         # Message delay
@@ -156,19 +156,31 @@ def download_message_files(msg):
     download_message_files function will iterate through every file listed at msg['filePaths'],
     move it to our output_path, and then call handle_file.
     """
-    # Construct output path for this message's files
-    msg_output_path = os.path.join(FDR.output_path, msg['pathPrefix'])
-    # Ensure directory exists at output path
-    if not os.path.exists(msg_output_path):
-        # Create it if it doesn't
-        os.makedirs(msg_output_path)
     # For every file in our message
     for s3_file in msg['files']:
         # Retrieve the bucket path for this file
         s3_path = s3_file['path']
         if not FDR.in_memory_transfer_only:
             # Create a local path name for our destination file based off of the S3 path
-            local_path = os.path.join(FDR.output_path, s3_path)
+            # Construct output path for this message's files
+            msg_output_path = os.path.realpath(os.path.join(FDR.output_path, msg["pathPrefix"]))
+            # Only write files to the specified output_path
+            if os.path.commonpath([FDR.output_path, msg_output_path]) != FDR.output_path:
+                logger.info(
+                    f"Skipping {msg_output_path} to prevent writes outside of output path: {FDR.output_path}"
+                )
+                continue
+            # Ensure directory exists at output path
+            if not os.path.exists(msg_output_path):
+                # Create it if it doesn't
+                os.makedirs(msg_output_path)
+            local_path = os.path.realpath(os.path.join(FDR.output_path, s3_path))
+            # Only write files to the specified output_path
+            if os.path.commonpath([FDR.output_path, local_path]) != FDR.output_path:
+                logger.info(
+                    f"Skipping {local_path} to prevent writes outside of output path: {FDR.output_path}"
+                )
+                continue
             # Open our local file for binary write
             with open(local_path, 'wb') as data:
                 # Download the file from S3 into our opened local file

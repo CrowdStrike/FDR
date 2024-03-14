@@ -155,12 +155,6 @@ def handle_file(path, key, target_bkt, file_object=None, log_util: logging.Logge
 
 def download_message_files(msg, s3ta, s3or, log: logging.Logger):
     """Download the file specified in the SQS message and trigger file handling."""
-    # Construct output path for this message's files
-    msg_output_path = os.path.join(FDR.output_path, msg['pathPrefix'])
-    # Ensure directory exists at output path
-    if not os.path.exists(msg_output_path):
-        # Create it if it doesn't
-        os.makedirs(msg_output_path)
     total_event_count = 0
     total_download_time_sec = 0.0
     total_transform_time_sec = 0.0
@@ -171,8 +165,26 @@ def download_message_files(msg, s3ta, s3or, log: logging.Logger):
         s3_path = s3_file['path']
         total_download_time_per_input_file = 0
         if not FDR.in_memory_transfer_only:
+            # Construct output path for this message's files
+            msg_output_path = os.path.realpath(os.path.join(FDR.output_path, msg["pathPrefix"]))
+            # Only write files to the specified output_path
+            if os.path.commonpath([FDR.output_path, msg_output_path]) != FDR.output_path:
+                log.info(
+                    f"Skipping {msg_output_path} to prevent writes outside of output path: {FDR.output_path}"
+                )
+                continue
+            # Ensure directory exists at output path
+            if not os.path.exists(msg_output_path):
+                # Create it if it doesn't
+                os.makedirs(msg_output_path)
             # Create a local path name for our destination file based off of the S3 path
-            local_path = os.path.join(FDR.output_path, s3_path)
+            local_path = os.path.realpath(os.path.join(FDR.output_path, s3_path))
+            # Only write files to the specified output_path
+            if os.path.commonpath([FDR.output_path, local_path]) != FDR.output_path:
+                log.info(
+                    f"Skipping {local_path} to prevent writes outside of output path: {FDR.output_path}"
+                )
+                continue
             if not os.path.exists(os.path.dirname(local_path)):
                 # Handle fdr platform and time partitioned folders
                 os.makedirs(os.path.dirname(local_path))
@@ -285,12 +297,9 @@ def consume_data_replicator(s3_bkt, s3_cs_bkt, log: logging.Logger):
                 byte_cnt += res[1]
                 received = res[2]
                 total_event_count += res[3]['total_event_count']
-                if max_total_download_time_sec < res[3]['total_download_time_sec']:
-                    max_total_download_time_sec = res[3]['total_download_time_sec']
-                if max_total_transform_time_sec < res[3]['total_transform_time_sec']:
-                    max_total_transform_time_sec = res[3]['total_transform_time_sec']
-                if max_total_upload_time_sec < res[3]['total_upload_time_sec']:
-                    max_total_upload_time_sec = res[3]['total_upload_time_sec']
+                max_total_download_time_sec = max(max_total_download_time_sec, res[3]['total_download_time_sec'])
+                max_total_transform_time_sec = max(max_total_transform_time_sec, res[3]['total_transform_time_sec'])
+                max_total_upload_time_sec = max(max_total_upload_time_sec, res[3]['total_upload_time_sec'])
                 m_tot_time_sec = max_total_download_time_sec + \
                     max_total_transform_time_sec + max_total_upload_time_sec
                 max_total_time_sec = max(max_total_time_sec, m_tot_time_sec)
