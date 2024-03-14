@@ -157,9 +157,12 @@ def download_message_files(msg):
     move it to our output_path, and then call handle_file.
     """
     # Construct output path for this message's files
-    msg_output_path = os.path.join(FDR.output_path, msg['pathPrefix'])
+    msg_output_path = os.path.realpath(os.path.join(FDR.output_path, msg["pathPrefix"]))
     # Only write files to the specified output_path
     if os.path.commonpath([FDR.output_path, msg_output_path]) != FDR.output_path:
+        logger.info(
+            f"Skipping {msg_output_path} to prevent writes outside of output path: {FDR.output_path}"
+        )
         return
     # Ensure directory exists at output path
     if not os.path.exists(msg_output_path):
@@ -171,9 +174,12 @@ def download_message_files(msg):
         s3_path = s3_file['path']
         if not FDR.in_memory_transfer_only:
             # Create a local path name for our destination file based off of the S3 path
-            local_path = os.path.join(FDR.output_path, s3_path)
+            local_path = os.path.realpath(os.path.join(FDR.output_path, s3_path))
             # Only write files to the specified output_path
             if os.path.commonpath([FDR.output_path, local_path]) != FDR.output_path:
+                logger.info(
+                    f"Skipping {local_path} to prevent writes outside of output path: {FDR.output_path}"
+                )
                 continue
             # Open our local file for binary write
             with open(local_path, 'wb') as data:

@@ -156,9 +156,12 @@ def handle_file(path, key, target_bkt, file_object=None, log_util: logging.Logge
 def download_message_files(msg, s3ta, s3or, log: logging.Logger):
     """Download the file specified in the SQS message and trigger file handling."""
     # Construct output path for this message's files
-    msg_output_path = os.path.join(FDR.output_path, msg['pathPrefix'])
+    msg_output_path = os.path.realpath(os.path.join(FDR.output_path, msg["pathPrefix"]))
     # Only write files to the specified output_path
     if os.path.commonpath([FDR.output_path, msg_output_path]) != FDR.output_path:
+        log.debug(
+            f"Skipping {msg_output_path} to prevent writes outside of output path: {FDR.output_path}"
+        )
         return
     # Ensure directory exists at output path
     if not os.path.exists(msg_output_path):
@@ -175,9 +178,12 @@ def download_message_files(msg, s3ta, s3or, log: logging.Logger):
         total_download_time_per_input_file = 0
         if not FDR.in_memory_transfer_only:
             # Create a local path name for our destination file based off of the S3 path
-            local_path = os.path.join(FDR.output_path, s3_path)
+            local_path = os.path.realpath(os.path.join(FDR.output_path, s3_path))
             # Only write files to the specified output_path
             if os.path.commonpath([FDR.output_path, local_path]) != FDR.output_path:
+                log.debug(
+                    f"Skipping {local_path} to prevent writes outside of output path: {FDR.output_path}"
+                )
                 continue
             if not os.path.exists(os.path.dirname(local_path)):
                 # Handle fdr platform and time partitioned folders
