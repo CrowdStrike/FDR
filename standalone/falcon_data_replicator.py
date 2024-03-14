@@ -156,24 +156,24 @@ def download_message_files(msg):
     download_message_files function will iterate through every file listed at msg['filePaths'],
     move it to our output_path, and then call handle_file.
     """
-    # Construct output path for this message's files
-    msg_output_path = os.path.realpath(os.path.join(FDR.output_path, msg["pathPrefix"]))
-    # Only write files to the specified output_path
-    if os.path.commonpath([FDR.output_path, msg_output_path]) != FDR.output_path:
-        logger.info(
-            f"Skipping {msg_output_path} to prevent writes outside of output path: {FDR.output_path}"
-        )
-        return
-    # Ensure directory exists at output path
-    if not os.path.exists(msg_output_path):
-        # Create it if it doesn't
-        os.makedirs(msg_output_path)
     # For every file in our message
     for s3_file in msg['files']:
         # Retrieve the bucket path for this file
         s3_path = s3_file['path']
         if not FDR.in_memory_transfer_only:
             # Create a local path name for our destination file based off of the S3 path
+            # Construct output path for this message's files
+            msg_output_path = os.path.realpath(os.path.join(FDR.output_path, msg["pathPrefix"]))
+            # Only write files to the specified output_path
+            if os.path.commonpath([FDR.output_path, msg_output_path]) != FDR.output_path:
+                logger.info(
+                    f"Skipping {msg_output_path} to prevent writes outside of output path: {FDR.output_path}"
+                )
+                continue 
+            # Ensure directory exists at output path
+            if not os.path.exists(msg_output_path):
+                # Create it if it doesn't
+                os.makedirs(msg_output_path)
             local_path = os.path.realpath(os.path.join(FDR.output_path, s3_path))
             # Only write files to the specified output_path
             if os.path.commonpath([FDR.output_path, local_path]) != FDR.output_path:
