@@ -51,7 +51,7 @@ class FDRConnector:  # pylint: disable=R0902
         # AWS SQS queue URL - Provided by CrowdStrike
         self.queue_url = config["Source Data"]["QUEUE_URL"]
         # Local file output location
-        self.output_path = config["Source Data"]["OUTPUT_PATH"]
+        self.output_path = os.path.realpath(config["Source Data"]["OUTPUT_PATH"])
         # Timeout before messages are returned to the queue
         self.visibility_timeout = int(config["Source Data"]["VISIBILITY_TIMEOUT"])
         # Message delay
