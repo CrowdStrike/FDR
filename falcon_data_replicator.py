@@ -297,12 +297,9 @@ def consume_data_replicator(s3_bkt, s3_cs_bkt, log: logging.Logger):
                 byte_cnt += res[1]
                 received = res[2]
                 total_event_count += res[3]['total_event_count']
-                if max_total_download_time_sec < res[3]['total_download_time_sec']:
-                    max_total_download_time_sec = res[3]['total_download_time_sec']
-                if max_total_transform_time_sec < res[3]['total_transform_time_sec']:
-                    max_total_transform_time_sec = res[3]['total_transform_time_sec']
-                if max_total_upload_time_sec < res[3]['total_upload_time_sec']:
-                    max_total_upload_time_sec = res[3]['total_upload_time_sec']
+                max_total_download_time_sec = max(max_total_download_time_sec, res[3]['total_download_time_sec'])
+                max_total_transform_time_sec = max(max_total_transform_time_sec, res[3]['total_transform_time_sec'])
+                max_total_upload_time_sec = max(max_total_upload_time_sec, res[3]['total_upload_time_sec'])
                 m_tot_time_sec = max_total_download_time_sec + \
                     max_total_transform_time_sec + max_total_upload_time_sec
                 max_total_time_sec = max(max_total_time_sec, m_tot_time_sec)

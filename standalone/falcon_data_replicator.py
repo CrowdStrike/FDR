@@ -169,7 +169,7 @@ def download_message_files(msg):
                 logger.info(
                     f"Skipping {msg_output_path} to prevent writes outside of output path: {FDR.output_path}"
                 )
-                continue 
+                continue
             # Ensure directory exists at output path
             if not os.path.exists(msg_output_path):
                 # Create it if it doesn't
