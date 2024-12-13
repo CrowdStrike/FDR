@@ -1,4 +1,5 @@
 """Falcon Data Replicator - Local File System / AWS S3 connector"""
+
 #  _____     _                   ____        _          ____            _ _           _
 # |  ___|_ _| | ___ ___  _ __   |  _ \  __ _| |_ __ _  |  _ \ ___ _ __ | (_) ___ __ _| |_ ___  _ __
 # | |_ / _` | |/ __/ _ \| '_ \  | | | |/ _` | __/ _` | | |_) / _ \ '_ \| | |/ __/ _` | __/ _ \| '__|
@@ -29,13 +30,16 @@ try:
     import boto3
 except ImportError as err:
     print(err)
-    print('The AWS boto3 library is required to run Falcon Data Replicator.\nPlease execute "pip3 install boto3"')
+    print(
+        'The AWS boto3 library is required to run Falcon Data Replicator.\nPlease execute "pip3 install boto3"'
+    )
     sys.exit(1)
 
 
 # Class to hold our connector config and to track our running status
 class FDRConnector:  # pylint: disable=R0902
     """The FDRConnector class contains the details of this connection and tracks the status of our process."""
+
     def __init__(self, config: configparser.ConfigParser):
         """Initialize our status class"""
         self.set_exit(False)
@@ -62,7 +66,9 @@ class FDRConnector:  # pylint: disable=R0902
         self.log_file = config["Source Data"]["LOG_FILE"]
         # AWS Region name for our source S3 bucket
         self.region_name = config["Source Data"]["REGION_NAME"]
-        self.in_memory_transfer_only = False  # Defaults to writing to the local file system
+        self.in_memory_transfer_only = (
+            False  # Defaults to writing to the local file system
+        )
         self.target_region_name = None  # Defaults to no upload
         self.target_bucket_name = None  # Defaults to no upload
         self.remove_local_file = False  # Defaults to keeping files locally
@@ -73,11 +79,15 @@ class FDRConnector:  # pylint: disable=R0902
                 # If it's not present, we don't need it
                 if config["Destination Data"]["TARGET_BUCKET"]:
                     # The name of our target S3 bucket
-                    self.target_bucket_name = config["Destination Data"]["TARGET_BUCKET"]
+                    self.target_bucket_name = config["Destination Data"][
+                        "TARGET_BUCKET"
+                    ]
 
                 if config["Destination Data"]["TARGET_REGION"]:
                     # The AWS region name our target S3 bucket resides in
-                    self.target_region_name = config["Destination Data"]["TARGET_REGION"]
+                    self.target_region_name = config["Destination Data"][
+                        "TARGET_REGION"
+                    ]
 
                 if config["Destination Data"]["REMOVE_LOCAL_FILE"]:
                     # Should we remove local files after we upload them?
@@ -90,7 +100,9 @@ class FDRConnector:  # pylint: disable=R0902
                 if config["Destination Data"]["IN_MEMORY_TRANSFER_ONLY"]:
                     # Transfer to S3 without using the local file system?
                     mem_trans = config["Destination Data"]["IN_MEMORY_TRANSFER_ONLY"]
-                    if mem_trans.lower() in "true,yes".split(","):  # pylint: disable=R1703
+                    if mem_trans.lower() in "true,yes".split(
+                        ","
+                    ):  # pylint: disable=R1703
                         self.in_memory_transfer_only = True
                     else:
                         self.in_memory_transfer_only = False
@@ -124,10 +136,10 @@ def handle_file(path, key, file_object=None):
     if FDR.target_bucket_name:
         if not file_object:
             # Open our local file (binary)
-            with open(path, 'rb') as data:
+            with open(path, "rb") as data:
                 # Perform the upload to the same key in our target bucket
                 s3_target.upload_fileobj(data, FDR.target_bucket_name, key)
-            logger.info('Uploaded file to path %s', key)
+            logger.info("Uploaded file to path %s", key)
             # Only perform this step if configured to do so
             if FDR.remove_local_file:
                 # Remove the file from the local file system
@@ -145,7 +157,7 @@ def handle_file(path, key, file_object=None):
                     logger.info("Removed %s", pure.parent.parent.parent)
         else:
             s3_target.upload_fileobj(file_object, FDR.target_bucket_name, key)
-            logger.info('Uploaded file to path %s', key)
+            logger.info("Uploaded file to path %s", key)
     # We're done
     return True
 
@@ -157,15 +169,20 @@ def download_message_files(msg):
     move it to our output_path, and then call handle_file.
     """
     # For every file in our message
-    for s3_file in msg['files']:
+    for s3_file in msg["files"]:
         # Retrieve the bucket path for this file
-        s3_path = s3_file['path']
+        s3_path = s3_file["path"]
         if not FDR.in_memory_transfer_only:
             # Create a local path name for our destination file based off of the S3 path
             # Construct output path for this message's files
-            msg_output_path = os.path.realpath(os.path.join(FDR.output_path, msg["pathPrefix"]))
+            msg_output_path = os.path.realpath(
+                os.path.join(FDR.output_path, msg["pathPrefix"])
+            )
             # Only write files to the specified output_path
-            if os.path.commonpath([FDR.output_path, msg_output_path]) != FDR.output_path:
+            if (
+                os.path.commonpath([FDR.output_path, msg_output_path])
+                != FDR.output_path
+            ):
                 logger.info(
                     f"Skipping {msg_output_path} to prevent writes outside of output path: {FDR.output_path}"
                 )
@@ -181,21 +198,25 @@ def download_message_files(msg):
                     f"Skipping {local_path} to prevent writes outside of output path: {FDR.output_path}"
                 )
                 continue
+            if not os.path.exists(os.path.dirname(local_path)):
+                # Handle fdr platform and time partitioned folders
+                os.makedirs(os.path.dirname(local_path))
             # Open our local file for binary write
-            with open(local_path, 'wb') as data:
+            with open(local_path, "wb") as data:
                 # Download the file from S3 into our opened local file
-                s3.download_fileobj(msg['bucket'], s3_path, data)
-            logger.info('Downloaded file to path %s', local_path)
+                s3.download_fileobj(msg["bucket"], s3_path, data)
+            logger.info("Downloaded file to path %s", local_path)
             # Handle S3 upload if configured
             handle_file(local_path, s3_path, None)
         else:
-            logger.info('Downloading file to memory')
-            s3t = boto3.resource("s3",
-                                 region_name=FDR.region_name,
-                                 aws_access_key_id=FDR.aws_key,
-                                 aws_secret_access_key=FDR.aws_secret
-                                 )
-            bkt = s3t.Bucket(msg['bucket'])
+            logger.info("Downloading file to memory")
+            s3t = boto3.resource(
+                "s3",
+                region_name=FDR.region_name,
+                aws_access_key_id=FDR.aws_key,
+                aws_secret_access_key=FDR.aws_secret,
+            )
+            bkt = s3t.Bucket(msg["bucket"])
             obj = bkt.Object(s3_path)
             stream = io.BytesIO()
             obj.download_fileobj(stream)
@@ -226,9 +247,9 @@ def consume_data_replicator():
             # Download the file to our local file system and potentially upload it to S3
             download_message_files(body)
             # Increment our file count by using the fileCount value in our message
-            file_cnt += body['fileCount']
+            file_cnt += body["fileCount"]
             # Increment our byte count by using the totalSize value in our message
-            byte_cnt += body['totalSize']
+            byte_cnt += body["totalSize"]
             logger.info("Removing message %i [%s] from queue", msg_cnt, msg.message_id)
             # Remove our message from the queue, if this is not performed in visibility_timeout seconds
             # this message will be restored to the queue for follow-up processing
@@ -236,9 +257,16 @@ def consume_data_replicator():
             # Sleep until our next message iteration
             time.sleep(FDR.message_delay)
 
-        logger.info("Messages consumed: %i\tFile count: %i\tByte count: %i", msg_cnt, file_cnt, byte_cnt)
+        logger.info(
+            "Messages consumed: %i\tFile count: %i\tByte count: %i",
+            msg_cnt,
+            file_cnt,
+            byte_cnt,
+        )
         if not received:
-            logger.info("No messages received, sleeping for %i seconds", FDR.queue_delay)
+            logger.info(
+                "No messages received, sleeping for %i seconds", FDR.queue_delay
+            )
             time.sleep(FDR.queue_delay)
 
     # We've requested an exit
@@ -253,10 +281,16 @@ def consume_data_replicator():
 
 
 # Start our main routine
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Configure our accepted command line parameters
     parser = argparse.ArgumentParser("Falcon Data Replicator")
-    parser.add_argument("-f", "--config_file", dest="config_file", help="Path to the configuration file", required=False)
+    parser.add_argument(
+        "-f",
+        "--config_file",
+        dest="config_file",
+        help="Path to the configuration file",
+        required=False,
+    )
     # Parse any parameters passed at runtime
     args = parser.parse_args()
     # If we were not provided a configuration file name
@@ -272,13 +306,15 @@ if __name__ == '__main__':
     # Create our connector
     FDR = FDRConnector(configuration)
     # Setup our root logger
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s"
+    )
     # Create our FDR logger
     logger = logging.getLogger("FDR Connector")
     # Rotate log file handler
     RFH = RotatingFileHandler(FDR.log_file, maxBytes=20971520, backupCount=5)
     # Log file output format
-    F_FORMAT = logging.Formatter('%(asctime)s %(name)s %(levelname)s %(message)s')
+    F_FORMAT = logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s")
     # Set the log file output level to INFO
     RFH.setLevel(logging.INFO)
     # Add our log file formatter to the log file handler
@@ -290,7 +326,7 @@ if __name__ == '__main__':
     logger.info("|  ___|  _ \\|  _ \\      (.\\")
     logger.info("| |_  | | | | |_) |     |/(\\")
     logger.info("|  _| | |_| |  _ <       \\(\\\\")
-    logger.info("|_|   |____/|_| \\_\\      \"^\"`\\")
+    logger.info('|_|   |____/|_| \\_\\      "^"`\\')
     logger.info("Process starting up")
     # Enable our graceful exit handler to allow uploads and artifact
     # cleanup to complete for SIGINT, SIGTERM and SIGQUIT signals.
@@ -298,22 +334,24 @@ if __name__ == '__main__':
     sig.signal(sig.SIGTERM, partial(clean_exit, FDR))
     sig.signal(sig.SIGQUIT, partial(clean_exit, FDR))
     # Connect to our CrowdStrike provided SQS queue
-    sqs = boto3.resource('sqs',
-                         region_name=FDR.region_name,
-                         aws_access_key_id=FDR.aws_key,
-                         aws_secret_access_key=FDR.aws_secret
-                         )
+    sqs = boto3.resource(
+        "sqs",
+        region_name=FDR.region_name,
+        aws_access_key_id=FDR.aws_key,
+        aws_secret_access_key=FDR.aws_secret,
+    )
     # Connect to our CrowdStrike provided S3 bucket
-    s3 = boto3.client('s3',
-                      region_name=FDR.region_name,
-                      aws_access_key_id=FDR.aws_key,
-                      aws_secret_access_key=FDR.aws_secret
-                      )
+    s3 = boto3.client(
+        "s3",
+        region_name=FDR.region_name,
+        aws_access_key_id=FDR.aws_key,
+        aws_secret_access_key=FDR.aws_secret,
+    )
     # If we are doing S3 uploads
     if FDR.target_bucket_name and FDR.target_region_name:
         logger.info("Upload to AWS S3 enabled")
         # Connect to our target S3 bucket, uses the existing client configuration to connect (Not the CS provided ones)
-        s3_target = boto3.client('s3', region_name=FDR.target_region_name)
+        s3_target = boto3.client("s3", region_name=FDR.target_region_name)
     # Create our queue object for handling message traffic
     queue = sqs.Queue(url=FDR.queue_url)
     logger.info("Startup complete")
