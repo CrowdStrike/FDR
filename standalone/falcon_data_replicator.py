@@ -69,6 +69,8 @@ class FDRConnector:  # pylint: disable=R0902
         self.in_memory_transfer_only = (
             False  # Defaults to writing to the local file system
         )
+        self.target_aws_key = None  # Defaults to no upload
+        self.target_aws_secret = None  # Defaults to no upload
         self.target_region_name = None  # Defaults to no upload
         self.target_bucket_name = None  # Defaults to no upload
         self.remove_local_file = False  # Defaults to keeping files locally
@@ -76,6 +78,14 @@ class FDRConnector:  # pylint: disable=R0902
             # Fail on these in order.  If REMOVE_LOCAL_FILE, or IN_MEMORY_TRANSFER_ONLY
             # fail, processing will still continue.
             if "Destination Data" in config:
+                # If it's not present, we don't need it
+                if config["Destination Data"]["AWS_KEY"]:
+                    # The AWS client ID of target account
+                    self.target_aws_key = config["Destination Data"]["AWS_KEY"]
+                # If it's not present, we don't need it
+                if config["Destination Data"]["AWS_SECRET"]:
+                    # The AWS client secret of target account
+                    self.target_aws_secret = config["Destination Data"]["AWS_SECRET"]
                 # If it's not present, we don't need it
                 if config["Destination Data"]["TARGET_BUCKET"]:
                     # The name of our target S3 bucket
@@ -351,7 +361,11 @@ if __name__ == "__main__":
     if FDR.target_bucket_name and FDR.target_region_name:
         logger.info("Upload to AWS S3 enabled")
         # Connect to our target S3 bucket, uses the existing client configuration to connect (Not the CS provided ones)
-        s3_target = boto3.client("s3", region_name=FDR.target_region_name)
+        s3_target = boto3.client("s3", 
+                                 region_name=FDR.target_region_name, 
+                                 aws_access_key_id=FDR.target_aws_key,
+                                 aws_secret_access_key=FDR.target_aws_secret
+                                )
     # Create our queue object for handling message traffic
     queue = sqs.Queue(url=FDR.queue_url)
     logger.info("Startup complete")

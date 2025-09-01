@@ -42,6 +42,8 @@ class FDRConnector:  # pylint: disable=R0902
         else:
             self.max_threads = int(max_threads)
         self.in_memory_transfer_only = False  # Defaults to writing to the local file system
+        self.target_aws_key = None  # Defaults to no upload
+        self.target_aws_secret = None  # Defaults to no upload
         self.target_region_name = None  # Defaults to no upload
         self.target_bucket_name = None  # Defaults to no upload
         self.remove_local_file = False  # Defaults to keeping files locally
@@ -50,6 +52,14 @@ class FDRConnector:  # pylint: disable=R0902
             # Fail on these in order.  If REMOVE_LOCAL_FILE, or IN_MEMORY_TRANSFER_ONLY
             # fail, processing will still continue.
             if "Destination Data" in config:
+                # If it's not present, we don't need it
+                if config["Destination Data"]["AWS_KEY"]:
+                    # The AWS client ID of target account
+                    self.target_aws_key = config["Destination Data"]["AWS_KEY"]
+                # If it's not present, we don't need it
+                if config["Destination Data"]["AWS_SECRET"]:
+                    # The AWS client secret of target account
+                    self.target_aws_secret = config["Destination Data"]["AWS_SECRET"]
                 # If it's not present, we don't need it
                 if config["Destination Data"]["TARGET_BUCKET"]:
                     # The name of our target S3 bucket
