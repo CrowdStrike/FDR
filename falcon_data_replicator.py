@@ -465,8 +465,11 @@ def get_s3_target(connector: FDRConnector, log_util: logging.Logger):
                                       connector.ocsf_role_external_id
                                       )
         else:
-            returned = boto3.client(
-                's3', region_name=connector.target_region_name)
+            returned = boto3.client('s3',
+                                     region_name=connector.target_region_name,
+                                     aws_access_key_id=connector.target_aws_key,
+                                     aws_secret_access_key=connector.target_aws_secret
+                                    )
 
     return returned
 

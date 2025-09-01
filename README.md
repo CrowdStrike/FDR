@@ -35,6 +35,8 @@ The following parameters must be provided in order for the solution to operate.
 #### Destination parameters
 The following parameters configure our destination details. If not these parameters are not present,
 upload to our bucket is skipped and the local files are retained after download.
++ `AWS_KEY` - The AWS client ID for the target AWS account
++ `AWS_SECRET` - The AWS client secret for the target AWS account
 + `TARGET_BUCKET` - The name of the AWS bucket we will use for our target destination
 + `TARGET_REGION` - The name of the AWS region our target bucket resides within
 + `REMOVE_LOCAL_FILE` - Boolean representing whether or not to remove local files after they are uploaded
